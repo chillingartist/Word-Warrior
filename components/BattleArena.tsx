@@ -43,7 +43,9 @@ const BattleArena: React.FC<BattleArenaProps> = ({ playerStats, onVictory, onDef
       const source = audioContextRef.current.createMediaStreamSource(stream);
       scriptProcessorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
 
-      sessionPromiseRef.current = await startLiveSession((score, feedback) => {
+      // Fix: sessionPromiseRef.current must store the promise itself (not the resolved session) 
+      // to correctly follow the .then() pattern for sendRealtimeInput as specified in the SDK guidelines.
+      sessionPromiseRef.current = startLiveSession((score, feedback) => {
         const damage = Math.floor(playerStats.atk * (score / 100) * (score > 85 ? 2 : 1));
         setEnemyHp(prev => Math.max(0, prev - damage));
         triggerDamage(damage, 'enemy');
@@ -58,6 +60,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ playerStats, onVictory, onDef
         for (let i = 0; i < l; i++) int16[i] = inputData[i] * 32768;
         const pcmBlob = { data: encodeAudio(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
         
+        // Ensure data is sent only after the session promise resolves
         sessionPromiseRef.current.then((session: any) => {
           session.sendRealtimeInput({ media: pcmBlob });
         });
