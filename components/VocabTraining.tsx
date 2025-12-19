@@ -33,6 +33,7 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
+  const [isRevealed, setIsRevealed] = useState(false);
 
   const handleDragEnd = (_: any, info: any) => {
     if (Math.abs(info.offset.x) > 100) {
@@ -50,10 +51,11 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={handleDragEnd}
+      onClick={() => setIsRevealed(true)}
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
-      className="absolute inset-0 dark:bg-slate-900 bg-white dark:border-slate-800 border-slate-200 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-between p-8 cursor-grab active:cursor-grabbing group overflow-visible touch-none"
+      className="absolute inset-0 dark:bg-slate-900 bg-white dark:border-slate-800 border-slate-200 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-between p-8 cursor-pointer active:cursor-grabbing group overflow-visible touch-none"
     >
       {/* Header: Progress */}
       <div className="w-full flex justify-between items-center text-slate-400 font-bold text-xs tracking-widest uppercase select-none">
@@ -72,18 +74,30 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
           )}
         </div>
 
-        <div className="w-full h-[1px] bg-slate-200 dark:bg-slate-800 max-w-[100px]" />
+        <div className={`w-full h-[1px] bg-slate-200 dark:bg-slate-800 max-w-[100px] transition-opacity duration-300 ${isRevealed ? 'opacity-100' : 'opacity-0'}`} />
 
-        <div className="space-y-2">
-          {translations.map((line, i) => (
-            <p key={i} className="text-xl md:text-2xl font-bold text-indigo-500 dark:text-indigo-400 leading-snug">
-              {line.trim()}
-            </p>
-          ))}
-          {word.definition && (
-            <p className="text-sm text-slate-400 max-w-xs mx-auto italic leading-relaxed line-clamp-3 mt-4">
-              {word.definition.split(/\\n|\n/)[0]}
-            </p>
+        <div className="space-y-2 min-h-[100px] flex flex-col justify-center">
+          {!isRevealed ? (
+            <div className="animate-pulse flex flex-col items-center gap-2 text-slate-400">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Tap to reveal</span>
+            </div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-2"
+            >
+              {translations.map((line, i) => (
+                <p key={i} className="text-xl md:text-2xl font-bold text-indigo-500 dark:text-indigo-400 leading-snug">
+                  {line.trim()}
+                </p>
+              ))}
+              {word.definition && (
+                <p className="text-sm text-slate-400 max-w-xs mx-auto italic leading-relaxed line-clamp-3 mt-4">
+                  {word.definition.split(/\\n|\n/)[0]}
+                </p>
+              )}
+            </motion.div>
           )}
         </div>
       </div>

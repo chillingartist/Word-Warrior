@@ -39,11 +39,15 @@ BEGIN
     w.exchange
   FROM words w
   WHERE NOT EXISTS (
-    -- Exclude words already mastered
+    -- Exclude words already mastered OR learned recently (SRS-lite)
     SELECT 1 FROM user_word_progress uwp
     WHERE uwp.user_id = p_user_id
       AND uwp.word_id = w.id
-      AND uwp.status = 'mastered'
+      AND (
+        uwp.status = 'mastered'
+        OR 
+        (uwp.status = 'learning' AND uwp.last_reviewed_at > NOW() - INTERVAL '12 hours')
+      )
   )
   ORDER BY 
     -- Words with frq=0 go to the end
