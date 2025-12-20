@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, PvPRoom } from '../services/pvpService';
+import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer } from '../services/grammarPvpService';
 
 interface BattleArenaProps {
   mode: string;
@@ -66,7 +67,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
   // Initial Setup & Cleanup
   useEffect(() => {
-    if (mode === 'pvp_blitz') {
+    if (mode === 'pvp_blitz' || mode === 'pvp_tactics') {
       setPvpState('idle');
     }
     return () => {
@@ -74,7 +75,10 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         supabase.removeChannel(matchmakingChannelRef.current);
         matchmakingChannelRef.current = null;
       }
-      if (roomId && userId) cancelWordBlitzMatchmaking(userId);
+      if (roomId && userId) {
+        if (mode === 'pvp_blitz') cancelWordBlitzMatchmaking(userId);
+        if (mode === 'pvp_tactics') cancelGrammarMatchmaking(userId);
+      }
     };
   }, [mode]);
 
@@ -96,7 +100,6 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     const timer = setInterval(() => setSearchingTime(t => t + 1), 1000);
 
     // 1. Setup Realtime Subscription FIRST (to avoid race condition)
-    // We need to be listening BEFORE we put ourselves in the queue.
     const setupSubscription = new Promise<void>((resolve) => {
       console.log('🔌 Setting up Matchmaking Listener for player1_id=' + userId);
 
@@ -104,9 +107,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         supabase.removeChannel(matchmakingChannelRef.current);
       }
 
+      const table = mode === 'pvp_tactics' ? 'pvp_grammar_rooms' : 'pvp_word_blitz_rooms';
+
       const channel = supabase.channel('matchmaking_' + userId)
         .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'pvp_word_blitz_rooms', filter: `player1_id=eq.${userId}` },
+          { event: 'INSERT', schema: 'public', table: table, filter: `player1_id=eq.${userId}` },
           async (payload) => {
             console.log('✅ Match created Event Received!', payload);
             const newRoom = payload.new as PvPRoom;
@@ -124,7 +129,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
             setRoomId(newRoom.id);
             setPvpState('matched');
             setStatus('MATCH FOUND!');
-            handleRoomUpdate(newRoom);
+            // handleRoomUpdate call is handled by the subscription in the next useEffect
           }
         )
         .subscribe((status) => {
@@ -136,14 +141,19 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
       matchmakingChannelRef.current = channel;
 
-      // Safety timeout - if subscription hangs, proceed anyway (rare but possible)
+      // Safety timeout - if subscription hangs, proceed anyway
       setTimeout(resolve, 2000);
     });
 
     await setupSubscription;
 
     // 2. Call RPC to join queue (or match instantly)
-    const result = await findWordBlitzMatch(userId);
+    let result;
+    if (mode === 'pvp_tactics') {
+      result = await findGrammarMatch(userId);
+    } else {
+      result = await findWordBlitzMatch(userId);
+    }
 
     if (result.status === 'matched' && result.roomId && result.role) {
       clearInterval(timer);
@@ -160,7 +170,6 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         setMyRole(result.role as 'player1' | 'player2');
         setPvpState('matched');
         setStatus('MATCH FOUND!');
-        // Note: We do NOT manually fetch here. The game useEffect will handle initial fetch + sub.
       }, 100);
 
     } else if (result.status === 'waiting') {
@@ -186,7 +195,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
       matchmakingChannelRef.current = null;
     }
 
-    await cancelWordBlitzMatchmaking(userId);
+    if (mode === 'pvp_tactics') {
+      await cancelGrammarMatchmaking(userId);
+    } else {
+      await cancelWordBlitzMatchmaking(userId);
+    }
     setPvpState('idle');
     setStatus('CANCELLED');
   };
@@ -202,7 +215,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     const fetchAndSubscribe = async () => {
       // 2.1 Fetch Initial State (Guarantees fresh state vs manual call)
       try {
-        const { data, error } = await supabase.from('pvp_word_blitz_rooms').select('*').eq('id', roomId).single();
+        const table = mode === 'pvp_tactics' ? 'pvp_grammar_rooms' : 'pvp_word_blitz_rooms';
+        const { data, error } = await supabase.from(table).select('*').eq('id', roomId).single();
         if (error) throw error;
         if (data && isMounted) {
           console.log('📥 Initial Room State:', data);
@@ -219,9 +233,10 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
     const subscribeToGame = () => {
       console.log(`🔌 Connecting to Game Room: ${roomId}`);
+      const table = mode === 'pvp_tactics' ? 'pvp_grammar_rooms' : 'pvp_word_blitz_rooms';
       const channel = supabase.channel('game_' + roomId)
         .on('postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'pvp_word_blitz_rooms', filter: `id=eq.${roomId}` },
+          { event: 'UPDATE', schema: 'public', table: table, filter: `id=eq.${roomId}` },
           (payload) => {
             console.log('📥 Game Update Received:', payload.new);
             handleRoomUpdate(payload.new as PvPRoom);
@@ -262,7 +277,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     if (!roomId || !myRole) return;
 
     const fetchOpponent = async () => {
-      const { data } = await supabase.from('pvp_word_blitz_rooms').select('player1_id, player2_id').eq('id', roomId).single();
+      const table = mode === 'pvp_tactics' ? 'pvp_grammar_rooms' : 'pvp_word_blitz_rooms';
+      const { data } = await supabase.from(table).select('player1_id, player2_id').eq('id', roomId).single();
       if (data) {
         const oppId = myRole === 'player1' ? data.player2_id : data.player1_id;
         const profile = await getOpponentProfile(oppId);
@@ -385,7 +401,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
     // Logic: If correct -> dmg = timeRemaining. If wrong -> self dmg = timeRemaining.
     // Database takes: (roomId, userId, qIndex, isCorrect, timeRemaining)
-    await submitWordBlitzAnswer(roomId, userId, currentQIndex, correct, timeRemaining);
+    if (mode === 'pvp_tactics') {
+      await submitGrammarAnswer(roomId, userId, currentQIndex, correct, timeRemaining);
+    } else {
+      await submitWordBlitzAnswer(roomId, userId, currentQIndex, correct, timeRemaining);
+    }
   };
 
   const handleChoice = (option: string) => {
@@ -412,21 +432,15 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // OLD MODES LOGIC (Tactics, Chant)
   // ============================================
   const handleTacticsAnswer = (ans: string) => {
-    // ... preserved old logic specific to tactics
-    if (ans === currentGrammarQ.correctAnswer) {
-      const dmg = playerStats.atk;
-      setEnemyHp(p => Math.max(0, p - dmg));
-      triggerEffect(dmg, 'enemy');
-      setStatus('CORRECT!');
-    } else {
-      setStatus('INCORRECT!');
+    // Legacy single player logic removed in favor of PvP
+    // But we reuse this function for PvP interaction to keep UI consistent if desired
+    // Or we just map the UI to handleChoice
+
+    // For PvP:
+    if (mode === 'pvp_tactics') {
+      handleChoice(ans);
+      return;
     }
-    setTimeout(() => {
-      setCurrentGrammarQ(MOCK_GRAMMAR_QUESTIONS[Math.floor(Math.random() * MOCK_GRAMMAR_QUESTIONS.length)]);
-      // Simple bot attack
-      setPlayerHp(p => Math.max(0, p - 10));
-      triggerEffect(10, 'player');
-    }, 1000);
   };
 
   // Chant Logic Preserved...
@@ -496,14 +510,19 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // ============================================
   // RENDER - MATCHMAKING SCREEN
   // ============================================
-  if (mode === 'pvp_blitz' && (pvpState === 'idle' || pvpState === 'searching')) {
+  // ============================================
+  // RENDER - MATCHMAKING SCREEN
+  // ============================================
+  if ((mode === 'pvp_blitz' || mode === 'pvp_tactics') && (pvpState === 'idle' || pvpState === 'searching')) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-4xl md:text-6xl font-black rpg-font italic tracking-tighter text-indigo-500">
-            BATTLE ARENA
+            {mode === 'pvp_tactics' ? 'GRAMMAR STRONGHOLD' : 'BATTLE ARENA'}
           </h1>
-          <p className="text-xs font-black uppercase tracking-[0.5em] text-slate-400">PvP Vocabulary Blitz</p>
+          <p className="text-xs font-black uppercase tracking-[0.5em] text-slate-400">
+            {mode === 'pvp_tactics' ? 'PvP Grammar Tactics' : 'PvP Vocabulary Blitz'}
+          </p>
         </div>
 
         <div className="relative group">
@@ -561,7 +580,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
         <div className="flex flex-col items-center opacity-80 shrink-0">
           <div className={`text-2xl font-black rpg-font ${timeLeft <= 3 ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
-            {mode === 'pvp_blitz' ? timeLeft : '∞'}
+            {mode === 'pvp_blitz' || mode === 'pvp_tactics' ? timeLeft : '∞'}
           </div>
           <span className="text-[10px] md:text-xs font-black rpg-font text-slate-500">VS</span>
         </div>
@@ -569,7 +588,9 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         <div className={`flex-1 text-right transition-all ${isShaking === 'enemy' ? 'animate-shake' : ''}`}>
           <div className="flex items-center gap-2 md:gap-4 mb-2 md:mb-3 justify-end">
             <div className="overflow-hidden text-right">
-              <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 truncate">{mode === 'pvp_blitz' ? opponentName : 'WRAITH'}</p>
+              <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 truncate">
+                {mode === 'pvp_blitz' || mode === 'pvp_tactics' ? opponentName : 'WRAITH'}
+              </p>
               <p className="rpg-font text-base md:text-2xl font-black leading-none">{enemyHp} HP</p>
             </div>
             <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shadow-lg shrink-0">
@@ -639,26 +660,31 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
             <div className="space-y-2">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-500">Syntax Challenge</span>
               <motion.h2
-                key={currentGrammarQ.prompt}
+                key={questions[currentQIndex]?.prompt || 'loading'}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="text-lg md:text-3xl font-bold dark:text-white text-slate-900 px-4 leading-relaxed italic"
               >
-                {currentGrammarQ.prompt}
+                {questions[currentQIndex]?.prompt || (status === 'READY' ? 'Ready...' : 'Loading Question...')}
               </motion.h2>
             </div>
             <div className="grid grid-cols-2 gap-3 md:gap-4">
-              {currentGrammarQ.options.map(opt => (
+              {questions[currentQIndex]?.options?.map((opt: string) => (
                 <button
                   key={opt}
-                  onClick={() => handleTacticsAnswer(opt)}
-                  disabled={false}
+                  onClick={() => handleChoice(opt)}
+                  disabled={hasAnsweredCurrent || !isGameConnected}
                   className="p-4 md:p-6 dark:bg-slate-950 bg-slate-50 border-2 dark:border-slate-800 border-slate-200 rounded-2xl md:rounded-3xl hover:border-cyan-500 font-bold text-xs md:text-lg transition-all active:scale-95 disabled:opacity-50"
                 >
                   {opt}
                 </button>
-              ))}
+              )) || (
+                  <div className="col-span-2 text-slate-500 animate-pulse">Waiting for server...</div>
+                )}
             </div>
+            {!isGameConnected && (
+              <div className="text-xs font-black uppercase tracking-widest text-indigo-500 animate-pulse">Connecting to Live Server...</div>
+            )}
           </div>
         )}
 
