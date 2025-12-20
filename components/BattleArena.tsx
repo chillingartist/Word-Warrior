@@ -6,6 +6,9 @@ import { startLiveSession, encodeAudio, resampleAudio } from '../services/liveSe
 import { MOCK_GRAMMAR_QUESTIONS, MOCK_VOCAB_CARDS } from '../constants.tsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useWarrior } from '../contexts/WarriorContext';
+import { soundService } from '../services/soundService';
+import BattleScene from './Warrior/BattleScene';
 import { supabase } from '../services/supabaseClient';
 import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, PvPRoom } from '../services/pvpService';
 import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer } from '../services/grammarPvpService';
@@ -20,11 +23,13 @@ interface BattleArenaProps {
 const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory, onDefeat }) => {
   const { user } = useAuth();
   const { getColorClass, primaryColor } = useTheme();
+  const { state: warriorState } = useWarrior();
   const userId = user?.id;
 
   // Generic State
   const [playerHp, setPlayerHp] = useState(playerStats.hp);
-  const [enemyHp, setEnemyHp] = useState(100); // For non-PvP modes or initial PvP
+  const [enemyHp, setEnemyHp] = useState(100);
+  const [combatEvent, setCombatEvent] = useState<{ type: 'attack' | 'hit' | 'block'; target: 'player' | 'enemy'; damage?: number } | null>(null); // For non-PvP modes or initial PvP
   const [status, setStatus] = useState('READY');
   const [isShaking, setIsShaking] = useState<'player' | 'enemy' | null>(null);
   const [damageNumbers, setDamageNumbers] = useState<{ id: number, val: number, target: 'player' | 'enemy', type?: 'crit' | 'block' }[]>([]);
@@ -216,6 +221,34 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
   const handleCancelSearch = () => cancelSearchImpl(false);
 
+  // Enemy Visual State
+  const [enemyAppearance, setEnemyAppearance] = useState({
+    skinColor: '#cccccc',
+    hairColor: '#000000',
+    armorId: 'default',
+    weaponId: 'default'
+  });
+
+  // Helper: Generate Random Appearance
+  const generateRandomAppearance = () => {
+    const skins = ['#f5d0b0', '#e0ac69', '#8d5524', '#523318', '#ffdbac'];
+    const hairs = ['#000000', '#4a3b2a', '#e6cea0', '#a52a2a', '#ffffff', '#666666'];
+    // Filter out weapons/armor from SHOP_ITEMS
+    /* 
+       We can import SHOP_ITEMS but we need to ensure circular deps are fine.
+       Or just hardcode IDs for simplicity as this is "AI" generation.
+    */
+    const armors = ['arm_leather', 'arm_iron', 'arm_golden', 'default'];
+    const weapons = ['wpn_wood_sword', 'wpn_iron_sword', 'wpn_flame_blade', 'default'];
+
+    return {
+      skinColor: skins[Math.floor(Math.random() * skins.length)],
+      hairColor: hairs[Math.floor(Math.random() * hairs.length)],
+      armorId: armors[Math.floor(Math.random() * armors.length)],
+      weaponId: weapons[Math.floor(Math.random() * weapons.length)]
+    };
+  };
+
   // AI MATCH LOGIC
   const startAiMatch = async () => {
     console.log('🤖 Starting AI Match...');
@@ -236,6 +269,9 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     setPvpState('matched');
     setStatus('OPPONENT FOUND!');
     setIsGameConnected(true); // Always connected for local AI
+
+    // RANDOMIZE ENEMY APPEARANCE
+    setEnemyAppearance(generateRandomAppearance());
 
     // Start Game
     setTimeout(() => {
@@ -558,9 +594,26 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // ============================================
 
   const triggerEffect = (val: number, target: 'player' | 'enemy', type?: 'crit' | 'block') => {
-    const id = Date.now() + Math.random(); // Prevent duplicate keys
+    const id = Date.now() + Math.random();
     setDamageNumbers(prev => [...prev, { id, val, target, type }]);
     setIsShaking(target);
+
+    // Play Sound
+    if (type === 'block') {
+      // soundService.playBlock(); // If implemented
+    } else {
+      soundService.playAttack(type === 'crit' ? 'fire' : 'slash');
+    }
+
+    // Trigger Visual Event
+    setCombatEvent({
+      type: type === 'block' ? 'block' : 'attack',
+      target: target === 'player' ? 'enemy' : 'player', // The attacker is the opposite of the damage target
+      damage: val
+    });
+    // Reset event after short animation time
+    setTimeout(() => setCombatEvent(null), 500);
+
     setTimeout(() => setIsShaking(null), 300);
     setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== id)), 1200);
   };
@@ -740,7 +793,21 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         </div>
       </div>
 
-      <div className="flex-1 mx-2 md:mx-4 dark:bg-slate-900/30 bg-white border dark:border-slate-800 border-slate-200 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-12 flex flex-col items-center justify-center relative shadow-2xl backdrop-blur-sm overflow-hidden min-h-[400px]">
+      {/* BATTLE SCENE */}
+      <div className="relative w-full max-w-3xl mx-auto -mt-4 mb-4 z-0">
+        <BattleScene
+          playerIds={{
+            skinColor: warriorState.appearance.skinColor,
+            hairColor: warriorState.appearance.hairColor,
+            armorId: warriorState.equipped.armor || 'default',
+            weaponId: warriorState.equipped.weapon || 'default'
+          }}
+          enemyIds={enemyAppearance}
+          combatEvent={combatEvent}
+        />
+      </div>
+
+      <div className="flex-1 mx-2 md:mx-4 dark:bg-slate-900/30 bg-white border dark:border-slate-800 border-slate-200 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-12 flex flex-col items-center justify-center relative shadow-2xl backdrop-blur-sm overflow-hidden min-h-[300px]">
         <AnimatePresence>
           {damageNumbers.map(d => (
             <motion.div
