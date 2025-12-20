@@ -5,6 +5,7 @@ import { Mic, X, Award, CheckCircle2, Sparkles, Activity, MessageSquare, Refresh
 import { startLiveSession, encodeAudio, resampleAudio } from '../services/liveService';
 import ReactMarkdown from 'react-markdown';
 import { useTheme } from '../contexts/ThemeContext';
+import FreeTalking from './oral/FreeTalking';
 
 interface OralTrainingProps {
   playerStats: any;
@@ -39,6 +40,10 @@ const DIFFICULTIES = [
 
 const OralTraining: React.FC<OralTrainingProps> = ({ playerStats, onSuccess }) => {
   const { getColorClass, primaryColor } = useTheme();
+
+  // Mode State
+  const [mode, setMode] = useState<'evaluation' | 'freeTalking'>('evaluation');
+
   // State
   const [status, setStatus] = useState<'ready' | 'listening' | 'analyzing'>('ready');
   const [result, setResult] = useState<Assessment | null>(null);
@@ -215,184 +220,216 @@ const OralTraining: React.FC<OralTrainingProps> = ({ playerStats, onSuccess }) =
   return (
     <div className="h-full flex flex-col relative select-none pb-20">
 
-      {/* 1. Settings Section (Topic & Difficulty) */}
-      <div className="px-4 pt-4 shrink-0 space-y-4">
-
-        {/* Controls */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400 pl-2">话题 (Topic)</label>
-            <select
-              value={currentTopic}
-              onChange={(e) => {
-                setCurrentTopic(e.target.value);
-                // Close session if open to reset prompting context
-                if (sessionRef.current) {
-                  sessionRef.current.close();
-                  sessionRef.current = null;
-                }
-              }}
-              className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors"
-            >
-              {TOPICS.map(t => (
-                <option key={t} value={t}>{t.split('(')[0].trim()}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400 pl-2">难度 (Difficulty)</label>
-            <select
-              value={difficulty}
-              onChange={(e) => {
-                setDifficulty(e.target.value);
-                if (sessionRef.current) {
-                  sessionRef.current.close();
-                  sessionRef.current = null;
-                }
-              }}
-              className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors"
-            >
-              {DIFFICULTIES.map(d => (
-                <option key={d} value={d}>{d.split('(')[0].trim()}</option>
-              ))}
-            </select>
-          </div>
+      {/* Mode Switcher */}
+      <div className="px-4 pt-4 shrink-0">
+        <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <button
+            onClick={() => setMode('evaluation')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'evaluation'
+              ? `${getColorClass('bg', 600)} text-white shadow-md`
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            口语评估
+          </button>
+          <button
+            onClick={() => setMode('freeTalking')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'freeTalking'
+              ? `${getColorClass('bg', 600)} text-white shadow-md`
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            Free Talking
+          </button>
         </div>
-
-        {/* Current Topic Display (Visual Feedback) */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-indigo-500/5 blur-xl rounded-[2rem] -z-10" />
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 dark:border-slate-800 border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Current Focus</span>
-              <h3 className="text-sm md:text-base font-bold dark:text-white text-slate-900 leading-tight">
-                "{currentTopic}"
-              </h3>
-              <span className="text-[10px] text-indigo-500 font-bold mt-1 max-w-[200px] truncate">{difficulty} Level</span>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-slate-800 flex items-center justify-center">
-              <Sparkles size={18} className="text-indigo-500" />
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      {/* 2. Main Display: Score & Evaluation */}
-      <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar">
-        {result ? (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">综合评定 (Overall)</span>
-              <div className="relative">
-                <span className="text-7xl md:text-8xl font-black rpg-font text-slate-900 dark:text-white">{result.score}</span>
-                <span className="absolute -top-2 -right-6 text-2xl text-slate-300 dark:text-slate-700 font-black">/100</span>
+      {/* Conditional Rendering Based on Mode */}
+      {mode === 'freeTalking' ? (
+        <FreeTalking onSuccess={onSuccess} onClose={() => setMode('evaluation')} />
+      ) : (
+        <>
+          {/* 1. Settings Section (Topic & Difficulty) */}
+          <div className="px-4 pt-4 shrink-0 space-y-4">
+
+            {/* Controls */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 pl-2">话题 (Topic)</label>
+                <select
+                  value={currentTopic}
+                  onChange={(e) => {
+                    setCurrentTopic(e.target.value);
+                    // Close session if open to reset prompting context
+                    if (sessionRef.current) {
+                      sessionRef.current.close();
+                      sessionRef.current = null;
+                    }
+                  }}
+                  className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors"
+                >
+                  {TOPICS.map(t => (
+                    <option key={t} value={t}>{t.split('(')[0].trim()}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 pl-2">难度 (Difficulty)</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => {
+                    setDifficulty(e.target.value);
+                    if (sessionRef.current) {
+                      sessionRef.current.close();
+                      sessionRef.current = null;
+                    }
+                  }}
+                  className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors"
+                >
+                  {DIFFICULTIES.map(d => (
+                    <option key={d} value={d}>{d.split('(')[0].trim()}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {result.dimensions && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 bg-white dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
-                <DimensionItem label="清晰度" score={result.dimensions.clarity} />
-                <DimensionItem label="论证度" score={result.dimensions.argument} />
-                <DimensionItem label="逻辑性" score={result.dimensions.logic} />
-                <DimensionItem label="准确性" score={result.dimensions.accuracy} />
-                <DimensionItem label="发音" score={result.dimensions.pronunciation} />
+            {/* Current Topic Display (Visual Feedback) */}
+            <div className="relative group">
+              <div className="absolute inset-0 bg-indigo-500/5 blur-xl rounded-[2rem] -z-10" />
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 dark:border-slate-800 border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Current Focus</span>
+                  <h3 className="text-sm md:text-base font-bold dark:text-white text-slate-900 leading-tight">
+                    "{currentTopic}"
+                  </h3>
+                  <span className="text-[10px] text-indigo-500 font-bold mt-1 max-w-[200px] truncate">{difficulty} Level</span>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Sparkles size={18} className="text-indigo-500" />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* 2. Main Display: Score & Evaluation */}
+          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar">
+            {result ? (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">综合评定 (Overall)</span>
+                  <div className="relative">
+                    <span className="text-7xl md:text-8xl font-black rpg-font text-slate-900 dark:text-white">{result.score}</span>
+                    <span className="absolute -top-2 -right-6 text-2xl text-slate-300 dark:text-slate-700 font-black">/100</span>
+                  </div>
+                </div>
+
+                {result.dimensions && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 bg-white dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                    <DimensionItem label="清晰度" score={result.dimensions.clarity} />
+                    <DimensionItem label="论证度" score={result.dimensions.argument} />
+                    <DimensionItem label="逻辑性" score={result.dimensions.logic} />
+                    <DimensionItem label="准确性" score={result.dimensions.accuracy} />
+                    <DimensionItem label="发音" score={result.dimensions.pronunciation} />
+                  </div>
+                )}
+
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-500/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare size={16} className="text-indigo-500" />
+                    <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">大贤者建议</span>
+                  </div>
+                  <div className="markdown-content text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                    <ReactMarkdown>{result.feedback}</ReactMarkdown>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-30 space-y-6">
+                <div className={`p-8 rounded-full border-4 border-dashed border-slate-300 dark:border-slate-700 transition-all ${status === 'listening' ? 'scale-110 border-emerald-500 border-solid animate-pulse' : ''}`}>
+                  {status === 'analyzing' ? (
+                    <Activity size={64} className="text-indigo-500" />
+                  ) : (
+                    <Award size={64} className="text-slate-400" />
+                  )}
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="text-xs font-black uppercase tracking-[0.4em] text-slate-500">
+                    {status === 'listening' ? '正聆听你的声音...' : '评估未开始'}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 max-w-[240px] leading-relaxed">
+                    点击悬浮球并长按开始口语对战，大贤者将实时分析你的口译水平
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Floating Mic Controls - Always Right Aligned */}
+          <div className="fixed z-[150] flex flex-col items-center gap-4 transition-all duration-500 
+        right-6 bottom-32 
+        md:right-12 md:bottom-[140px]"
+          >
+
+            <AnimatePresence>
+              {status === 'listening' && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className={`absolute right-full mr-4 px-4 py-2 rounded-full whitespace-nowrap shadow-2xl border flex items-center gap-3 ${isCanceling
+                    ? 'bg-red-600 border-white text-white'
+                    : 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-slate-200 dark:border-slate-800 text-slate-600 dark:text-white'
+                    }`}
+                >
+                  {isCanceling ? <X size={16} /> : <Activity size={16} className="text-emerald-500 animate-pulse" />}
+                  <span className="text-[11px] font-black uppercase tracking-widest">
+                    {isCanceling ? '松手取消录音' : '左滑取消 (Slide Left)'}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {status === 'ready' && (
+              <div className="absolute bottom-full mb-3 whitespace-nowrap opacity-70">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400">长按修行</span>
               </div>
             )}
 
-            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-500/30">
-              <div className="flex items-center gap-2 mb-4">
-                <MessageSquare size={16} className="text-indigo-500" />
-                <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">大贤者建议</span>
-              </div>
-              <div className="markdown-content text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                <ReactMarkdown>{result.feedback}</ReactMarkdown>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center opacity-30 space-y-6">
-            <div className={`p-8 rounded-full border-4 border-dashed border-slate-300 dark:border-slate-700 transition-all ${status === 'listening' ? 'scale-110 border-emerald-500 border-solid animate-pulse' : ''}`}>
-              {status === 'analyzing' ? (
-                <Activity size={64} className="text-indigo-500" />
-              ) : (
-                <Award size={64} className="text-slate-400" />
-              )}
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-xs font-black uppercase tracking-[0.4em] text-slate-500">
-                {status === 'listening' ? '正聆听你的声音...' : '评估未开始'}
-              </p>
-              <p className="text-[10px] font-bold text-slate-400 max-w-[240px] leading-relaxed">
-                点击悬浮球并长按开始口语对战，大贤者将实时分析你的口译水平
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Floating Mic Controls - Always Right Aligned */}
-      <div className="fixed z-[150] flex flex-col items-center gap-4 transition-all duration-500 
-        right-6 bottom-32 
-        md:right-12 md:bottom-[140px]"
-      >
-
-        <AnimatePresence>
-          {status === 'listening' && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`absolute right-full mr-4 px-4 py-2 rounded-full whitespace-nowrap shadow-2xl border flex items-center gap-3 ${isCanceling
-                ? 'bg-red-600 border-white text-white'
-                : 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-slate-200 dark:border-slate-800 text-slate-600 dark:text-white'
-                }`}
-            >
-              {isCanceling ? <X size={16} /> : <Activity size={16} className="text-emerald-500 animate-pulse" />}
-              <span className="text-[11px] font-black uppercase tracking-widest">
-                {isCanceling ? '松手取消录音' : '左滑取消 (Slide Left)'}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {status === 'ready' && (
-          <div className="absolute bottom-full mb-3 whitespace-nowrap opacity-70">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400">长按修行</span>
-          </div>
-        )}
-
-        <motion.button
-          onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-          onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
-          onMouseUp={handleEnd}
-          onMouseLeave={handleEnd}
-          onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-          onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
-          onTouchEnd={handleEnd}
-          disabled={status === 'analyzing' || !micPermission}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className={`
+            <motion.button
+              onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+              onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+              onMouseUp={handleEnd}
+              onMouseLeave={handleEnd}
+              onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
+              onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
+              onTouchEnd={handleEnd}
+              disabled={status === 'analyzing' || !micPermission}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className={`
             w-16 h-16 md:w-20 md:h-20 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center transition-all duration-300 border-4 border-white dark:border-slate-950
             ${!micPermission ? 'bg-slate-400 grayscale cursor-not-allowed' :
-              status === 'listening'
-                ? 'bg-red-600 border-red-400'
-                : `${getColorClass('bg', 600)} shadow-lg shadow-${primaryColor}-500/40 hover:brightness-110`
-            }
+                  status === 'listening'
+                    ? 'bg-red-600 border-red-400'
+                    : `${getColorClass('bg', 600)} shadow-lg shadow-${primaryColor}-500/40 hover:brightness-110`
+                }
           `}
-        >
-          {status === 'listening' && (
-            <span className="absolute inset-0 rounded-full bg-red-400/50 animate-ping" />
-          )}
-          {status === 'analyzing' ? (
-            <RefreshCw size={32} className="text-white animate-spin" />
-          ) : (
-            <Mic size={32} className="text-white relative z-10" />
-          )}
-        </motion.button>
-      </div>
+            >
+              {status === 'listening' && (
+                <span className="absolute inset-0 rounded-full bg-red-400/50 animate-ping" />
+              )}
+              {status === 'analyzing' ? (
+                <RefreshCw size={32} className="text-white animate-spin" />
+              ) : (
+                <Mic size={32} className="text-white relative z-10" />
+              )}
+            </motion.button>
+          </div>
+
+        </>
+      )}
 
     </div>
   );

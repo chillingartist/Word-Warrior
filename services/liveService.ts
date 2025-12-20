@@ -48,7 +48,7 @@ export const startLiveSession = (
     config: {
       responseModalities: [Modality.AUDIO],
       systemInstruction: systemPrompt,
-      outputAudioTranscription: {}, 
+      outputAudioTranscription: {},
       inputAudioTranscription: {},
     },
     callbacks: {
@@ -64,7 +64,7 @@ export const startLiveSession = (
           console.log("Model Turn Complete. Total text:", accumulatedText);
           if (accumulatedText.trim()) {
             onFinalFeedback(accumulatedText);
-            accumulatedText = ""; 
+            accumulatedText = "";
           }
         }
       },
@@ -109,3 +109,161 @@ export async function decodeAudioData(
   }
   return buffer;
 }
+
+// Free Talking Session with bidirectional audio streaming
+export const startFreeTalkingSession = (
+  topic: string,
+  level: string,
+  onAudioReceived: (audioData: Uint8Array) => void,
+  onConversationEnd?: (summary: string) => void
+) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  let sessionObj: any = null;
+  let audioSources: AudioBufferSourceNode[] = [];
+  let outputAudioContext: AudioContext | null = null;
+  let nextStartTime = 0;
+  let accumulatedSummary = "";
+
+  const levelDescriptions: Record<string, string> = {
+    'beginner': 'Use simple vocabulary and speak slowly. Use short sentences.',
+    'intermediate': 'Use everyday vocabulary at normal speed. Use common expressions.',
+    'advanced': 'Use advanced vocabulary and idiomatic expressions. Speak naturally at native speed.'
+  };
+
+  const systemPrompt = `
+You are a friendly English conversation partner helping a ${level} level student practice English.
+
+Topic: ${topic}
+Level: ${level}
+
+Guidelines:
+- Engage in natural, conversational English about ${topic}
+- ${levelDescriptions[level] || levelDescriptions['intermediate']}
+- Ask open-ended questions to encourage speaking
+- Gently correct major errors by rephrasing
+- Keep responses concise (2-3 sentences max)
+- Be encouraging and supportive
+- IMPORTANT: Respond in AUDIO format
+
+The conversation will last about 3 minutes. Make it engaging and interactive.
+`;
+
+  const sessionPromise = ai.live.connect({
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+    config: {
+      responseModalities: [Modality.AUDIO],
+      systemInstruction: systemPrompt,
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } }
+      },
+      outputAudioTranscription: {},
+      inputAudioTranscription: {},
+    },
+    callbacks: {
+      onopen: () => {
+        console.log('Free Talking Session Connected');
+        // Initialize audio context for playback
+        if (!outputAudioContext) {
+          outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+      },
+      onmessage: async (message: LiveServerMessage) => {
+        // Handle audio output
+        if (message.serverContent?.modelTurn?.parts) {
+          for (const part of message.serverContent.modelTurn.parts) {
+            if (part.inlineData?.mimeType?.includes('audio/pcm')) {
+              const audioData = decodeAudio(part.inlineData.data);
+              onAudioReceived(audioData);
+
+              // Play audio immediately
+              if (outputAudioContext) {
+                try {
+                  const audioBuffer = await decodeAudioData(audioData, outputAudioContext, 24000, 1);
+                  const source = outputAudioContext.createBufferSource();
+                  source.buffer = audioBuffer;
+                  source.connect(outputAudioContext.destination);
+
+                  const currentTime = outputAudioContext.currentTime;
+                  const startTime = Math.max(currentTime, nextStartTime);
+                  source.start(startTime);
+                  nextStartTime = startTime + audioBuffer.duration;
+
+                  audioSources.push(source);
+
+                  // Clean up after playing
+                  source.onended = () => {
+                    const index = audioSources.indexOf(source);
+                    if (index > -1) audioSources.splice(index, 1);
+                  };
+                } catch (e) {
+                  console.error('Error playing audio:', e);
+                }
+              }
+            }
+          }
+        }
+
+        // Handle interruption
+        if (message.serverContent?.interrupted) {
+          console.log('Conversation interrupted by user');
+          stopAllAudio();
+        }
+
+        // Collect summary at the end
+        if (message.serverContent?.outputTranscription) {
+          accumulatedSummary += message.serverContent.outputTranscription.text;
+        }
+
+        if (message.serverContent?.turnComplete && onConversationEnd && accumulatedSummary.includes('summary')) {
+          onConversationEnd(accumulatedSummary);
+        }
+      },
+      onerror: (e) => console.error('Free Talking Session Error', e),
+      onclose: () => {
+        console.log('Free Talking Session Closed');
+        stopAllAudio();
+        if (outputAudioContext) {
+          outputAudioContext.close();
+          outputAudioContext = null;
+        }
+      },
+    },
+  });
+
+  sessionPromise.then(s => { sessionObj = s; });
+
+  const stopAllAudio = () => {
+    audioSources.forEach(source => {
+      try {
+        source.stop();
+      } catch (e) {
+        // Already stopped
+      }
+    });
+    audioSources = [];
+    if (outputAudioContext) {
+      nextStartTime = outputAudioContext.currentTime;
+    }
+  };
+
+  return {
+    sessionPromise,
+    sendAudio: (audioData: Uint8Array) => {
+      if (sessionObj) {
+        const pcmBlob = { data: encodeAudio(audioData), mimeType: 'audio/pcm;rate=16000' };
+        sessionObj.sendRealtimeInput({ media: pcmBlob });
+      }
+    },
+    stopAudio: stopAllAudio,
+    requestSummary: () => {
+      if (sessionObj) {
+        sessionObj.send([{ text: 'Please provide a brief summary in Chinese of our conversation, including: 1) Overall performance 2) Strong points 3) Areas for improvement' }]);
+      }
+    },
+    close: () => {
+      stopAllAudio();
+      if (sessionObj) sessionObj.close();
+    }
+  };
+};
+
