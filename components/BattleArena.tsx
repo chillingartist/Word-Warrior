@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Shield, User, Zap, Flame, Sword, Target, ShieldCheck, Loader2, XCircle } from 'lucide-react';
 import { startLiveSession, encodeAudio, resampleAudio } from '../services/liveService';
-import { MOCK_GRAMMAR_QUESTIONS } from '../constants.tsx';
+import { MOCK_GRAMMAR_QUESTIONS, MOCK_VOCAB_CARDS } from '../constants.tsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabaseClient';
@@ -96,8 +96,17 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     setPvpState('searching');
     setSearchingTime(0);
 
-    // Timer for UI only
-    const timer = setInterval(() => setSearchingTime(t => t + 1), 1000);
+    // Timer for UI only - Modified to trigger AI
+    const timer = setInterval(() => {
+      setSearchingTime(t => {
+        if (t >= 10) {
+          clearInterval(timer); // Stop counting
+          startAiMatch(); // Switch to AI
+          return t;
+        }
+        return t + 1;
+      });
+    }, 1000);
 
     // 1. Setup Realtime Subscription FIRST (to avoid race condition)
     const setupSubscription = new Promise<void>((resolve) => {
@@ -187,7 +196,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     }
   };
 
-  const handleCancelSearch = async () => {
+  const cancelSearchImpl = async (isSwitchingToAi: boolean) => {
     if (!userId) return;
 
     if (matchmakingChannelRef.current) {
@@ -195,18 +204,99 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
       matchmakingChannelRef.current = null;
     }
 
-    if (mode === 'pvp_tactics') {
-      await cancelGrammarMatchmaking(userId);
-    } else {
-      await cancelWordBlitzMatchmaking(userId);
+    // We don't await these if switching to AI to speed up UI transition
+    const p1 = mode === 'pvp_tactics' ? cancelGrammarMatchmaking(userId) : cancelWordBlitzMatchmaking(userId);
+
+    if (!isSwitchingToAi) {
+      await p1;
+      setPvpState('idle');
+      setStatus('CANCELLED');
     }
-    setPvpState('idle');
-    setStatus('CANCELLED');
+  };
+
+  const handleCancelSearch = () => cancelSearchImpl(false);
+
+  // AI MATCH LOGIC
+  const startAiMatch = async () => {
+    console.log('🤖 Starting AI Match...');
+    await cancelSearchImpl(true);
+
+    const isGrammar = mode === 'pvp_tactics';
+    const mockQuestions = isGrammar ? MOCK_GRAMMAR_QUESTIONS : MOCK_VOCAB_CARDS;
+
+    // Shuffle questions
+    const selectedQuestions = [...mockQuestions]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5); // Take 5 questions for quick match
+
+    setQuestions(selectedQuestions);
+    setOpponentName('AI Trainer');
+    setRoomId('local_ai_' + Date.now());
+    setMyRole('player1');
+    setPvpState('matched');
+    setStatus('OPPONENT FOUND!');
+    setIsGameConnected(true); // Always connected for local AI
+
+    // Start Game
+    setTimeout(() => {
+      setCurrentQIndex(0);
+      setShuffledOptions([...selectedQuestions[0].options].sort(() => Math.random() - 0.5));
+      setPvpState('playing');
+      setStatus('V.S.');
+      setTimeLeft(10);
+    }, 1500);
+  };
+
+  // AI Simulation Loop
+  useEffect(() => {
+    if (!roomId || !roomId.startsWith('local_ai_') || pvpState !== 'playing') return;
+
+    // AI Bot thinking time
+    const aiThinkTime = Math.random() * 4000 + 3000; // 3-7 seconds
+
+    const aiTimer = setTimeout(() => {
+      // AI Answer Logic
+      const isCorrect = Math.random() > 0.2; // 80% accuracy
+      const damage = isCorrect ? Math.floor(Math.random() * 5) + 5 : 0; // Random damage 5-10 approx
+
+      if (isCorrect) {
+        setPlayerHp(prev => {
+          const newVal = Math.max(0, prev - damage);
+          if (newVal < playerHp) triggerEffect(damage, 'player');
+          return newVal;
+        });
+        // Check game over
+        if (playerHp - damage <= 0) {
+          handleLocalGameOver('lost');
+        }
+      } else {
+        // AI Missed
+        triggerEffect(0, 'player', 'block');
+      }
+
+    }, aiThinkTime);
+
+    return () => clearTimeout(aiTimer);
+  }, [roomId, pvpState, currentQIndex, playerHp]); // Re-run on state change key triggers
+
+  const handleLocalGameOver = (result: 'won' | 'lost') => {
+    setPvpState('end');
+    if (result === 'won') {
+      setStatus('YOU WIN!');
+    } else {
+      setStatus('YOU LOSE!');
+    }
   };
 
   // 2. Game Loop Subscription & Initial Fetch
   useEffect(() => {
     if (!roomId || !myRole) return;
+
+    // Skip subscription for local AI matches
+    if (roomId.startsWith('local_ai_')) {
+      setIsGameConnected(true);
+      return;
+    }
 
     let activeChannel: any = null;
     let retryTimeout: any = null;
@@ -401,6 +491,53 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
     // Logic: If correct -> dmg = timeRemaining. If wrong -> self dmg = timeRemaining.
     // Database takes: (roomId, userId, qIndex, isCorrect, timeRemaining)
+
+    // Check if Local AI Match
+    if (roomId.startsWith('local_ai_')) {
+      // Local Logic
+      setTimeout(() => {
+        if (correct) {
+          const dmg = timeRemaining * 2; // Simple math
+          setEnemyHp(prev => {
+            const newVal = Math.max(0, prev - dmg);
+            if (newVal < enemyHp) triggerEffect(dmg, 'enemy', 'crit');
+            if (newVal <= 0) handleLocalGameOver('won');
+            return newVal;
+          });
+        } else {
+          // Self damage?
+          const dmg = 5;
+          setPlayerHp(prev => {
+            const newVal = Math.max(0, prev - dmg);
+            triggerEffect(dmg, 'player');
+            if (newVal <= 0) handleLocalGameOver('lost');
+            return newVal;
+          });
+        }
+
+        // Next Question
+        if (currentQIndex < questions.length - 1) {
+          setTimeout(() => {
+            const nextIdx = currentQIndex + 1;
+            setCurrentQIndex(nextIdx);
+            setHasAnsweredCurrent(false);
+            setTimeLeft(10);
+            const q = questions[nextIdx];
+            setShuffledOptions([...q.options].sort(() => Math.random() - 0.5));
+            setStatus('V.S.');
+          }, 1000);
+        } else {
+          // End of questions - check HP winner?
+          // Or just loop? Let's end for now.
+          setTimeout(() => {
+            if (playerHp > enemyHp) handleLocalGameOver('won');
+            else handleLocalGameOver('lost');
+          }, 1000);
+        }
+      }, 500);
+      return;
+    }
+
     if (mode === 'pvp_tactics') {
       await submitGrammarAnswer(roomId, userId, currentQIndex, correct, timeRemaining);
     } else {
