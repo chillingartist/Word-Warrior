@@ -110,7 +110,20 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ userId }) => {
                             {/* Middle: Score */}
                             <div className="flex flex-col items-center">
                                 <span className="text-lg font-black italic text-slate-200">{match.score}</span>
+                                <div className="flex flex-col items-center mt-1">
+                                    {match.scoreChange !== undefined && match.scoreChange !== 0 && (
+                                        <span className={`text-[10px] font-bold ${match.scoreChange > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {match.scoreChange > 0 ? '+' : ''}{match.scoreChange} Pts
+                                        </span>
+                                    )}
+                                    {match.startRankPoints !== undefined && (
+                                        <span className="text-[9px] text-slate-500 font-mono">
+                                            Start: {match.startRankPoints}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
+
 
                             {/* Right: Opponent & Time */}
                             <div className="flex flex-col items-end text-right">
