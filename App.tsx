@@ -25,8 +25,9 @@ import MatchHistory from './components/MatchHistory';
 import CustomizerPanel from './components/Shop/CustomizerPanel';
 
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { WarriorProvider } from './contexts/WarriorContext';
+import { WarriorProvider, useWarrior } from './contexts/WarriorContext';
 import { GameBottomNav } from './components/GameBottomNav';
+import { TopStatusBar } from './components/TopStatusBar';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -51,7 +52,8 @@ interface AuthenticatedAppProps {
 
 const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
   const { user } = useAuth();
-  const { themeMode, getColorClass, primaryColor } = useTheme(); // Use Theme Context
+  const { themeMode, getColorClass, primaryColor, avatar } = useTheme(); // Use Theme Context
+  const { state: warriorState } = useWarrior();
 
   const [stats, setStats] = useState<UserStats>(() => {
     const saved = localStorage.getItem(`ww_stats_${userId}`);
@@ -305,6 +307,12 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
     <div className="h-screen flex flex-col transition-colors duration-500 overflow-hidden ww-app">
       {/* Mini Header */}
 
+      <TopStatusBar
+        avatar={avatar}
+        username={user?.user_metadata?.username || user?.email || 'Word Warrior'}
+        level={stats.level}
+        gold={warriorState.gold}
+      />
 
       {/* Main Content Area */}
       <main className={`flex-1 overflow-y-auto px-4 custom-scrollbar relative transition-all duration-300 ${isArenaMenuOpen ? 'blur-sm scale-95 opacity-80 pointer-events-none select-none' : ''}`}>
