@@ -5,7 +5,9 @@ import { Mic, X, Award, CheckCircle2, Sparkles, Activity, MessageSquare, Refresh
 import { startLiveSession, encodeAudio, resampleAudio } from '../services/liveService';
 import ReactMarkdown from 'react-markdown';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import FreeTalking from './oral/FreeTalking';
+import SpeakingAssessment from './speaking-assessment/SpeakingAssessment';
 
 interface OralTrainingProps {
   playerStats: any;
@@ -40,9 +42,10 @@ const DIFFICULTIES = [
 
 const OralTraining: React.FC<OralTrainingProps> = ({ playerStats, onSuccess }) => {
   const { getColorClass, primaryColor } = useTheme();
+  const { user } = useAuth();
 
-  // Mode State
-  const [mode, setMode] = useState<'evaluation' | 'freeTalking'>('evaluation');
+  // Mode State - 添加新的评估模式
+  const [mode, setMode] = useState<'traditional' | 'freeTalking' | 'assessment'>('assessment');
 
   // State
   const [status, setStatus] = useState<'ready' | 'listening' | 'analyzing'>('ready');
@@ -224,29 +227,44 @@ const OralTraining: React.FC<OralTrainingProps> = ({ playerStats, onSuccess }) =
       <div className="px-4 pt-4 shrink-0">
         <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
           <button
-            onClick={() => setMode('evaluation')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'evaluation'
+            onClick={() => setMode('assessment')}
+            className={`flex-1 py-3 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'assessment'
               ? `${getColorClass('bg', 600)} text-white shadow-md`
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
           >
-            口语评估
+            AI评估
+          </button>
+          <button
+            onClick={() => setMode('traditional')}
+            className={`flex-1 py-3 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'traditional'
+              ? `${getColorClass('bg', 600)} text-white shadow-md`
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            传统评估
           </button>
           <button
             onClick={() => setMode('freeTalking')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'freeTalking'
+            className={`flex-1 py-3 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'freeTalking'
               ? `${getColorClass('bg', 600)} text-white shadow-md`
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
           >
-            Free Talking
+            自由对话
           </button>
         </div>
       </div>
 
       {/* Conditional Rendering Based on Mode */}
-      {mode === 'freeTalking' ? (
-        <FreeTalking onSuccess={onSuccess} onClose={() => setMode('evaluation')} />
+      {mode === 'assessment' ? (
+        <SpeakingAssessment
+          userId={user?.id || ''}
+          onSuccess={onSuccess}
+          onClose={() => setMode('assessment')}
+        />
+      ) : mode === 'freeTalking' ? (
+        <FreeTalking onSuccess={onSuccess} onClose={() => setMode('assessment')} />
       ) : (
         <>
           {/* 1. Settings Section (Topic & Difficulty) */}
