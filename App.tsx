@@ -500,7 +500,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
         )}
       </AnimatePresence>
 
-      {!['pvp_blitz', 'pvp_tactics'].includes(activeTab) && (
+      {!['pvp_blitz', 'pvp_tactics'].includes(activeTab) && !showShop && (
         <GameBottomNav
           activeId={navActiveId}
           onSelect={(id) => {
