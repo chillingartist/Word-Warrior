@@ -831,10 +831,10 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // RENDER - GAME SCREEN
   // ============================================
   return (
-    <div className="h-full flex flex-col space-y-6 md:space-y-12 max-w-5xl mx-auto py-4 px-0">
+    <div className="h-full flex flex-col gap-3 md:gap-8 max-w-5xl mx-auto pt-2 md:pt-4 pb-2 px-0">
 
       {/* HP HEADER - Scaled for Mobile */}
-      <div className="flex justify-between items-center gap-4 md:gap-12 pt-4 px-4 md:px-8">
+      <div className="flex justify-between items-center gap-4 md:gap-12 pt-2 md:pt-4 px-4 md:px-8">
         <div className={`flex-1 transition-all ${isShaking === 'player' ? 'animate-shake' : ''}`}>
           <div className="flex items-center gap-2 md:gap-4 mb-2 md:mb-3">
             <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-lg shrink-0">
@@ -876,7 +876,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
       </div>
 
       {/* BATTLE SCENE */}
-      <div className="relative w-full max-w-3xl mx-auto -mt-4 mb-4 z-0">
+      <div className="relative w-full max-w-3xl mx-auto -mt-1 md:-mt-4 z-0 px-2 md:px-0">
         {mode === 'pvp_chant' ? (
           <ChantBattleScene
             playerIds={{
@@ -902,7 +902,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         )}
       </div>
 
-      <div className="flex-1 mx-2 md:mx-4 dark:bg-slate-900/30 bg-white border dark:border-slate-800 border-slate-200 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-12 flex flex-col items-center justify-center relative shadow-2xl backdrop-blur-sm overflow-hidden min-h-[300px]">
+      {/* Question + options: sticky on mobile so it's always above the bottom nav */}
+      <div
+        className="mx-2 md:mx-4 dark:bg-slate-900/30 bg-white border dark:border-slate-800 border-slate-200 rounded-[2rem] md:rounded-[3rem] p-4 md:p-12 flex flex-col items-center justify-center relative shadow-2xl backdrop-blur-sm overflow-hidden md:static sticky z-[30]"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+      >
         <AnimatePresence>
           {damageNumbers.map(d => (
             <motion.div
@@ -919,14 +923,14 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         </AnimatePresence>
 
         {mode === 'pvp_blitz' && (
-          <div className="space-y-6 md:space-y-12 w-full max-w-md text-center px-6 md:px-0">
+          <div className="space-y-4 md:space-y-12 w-full max-w-md text-center px-2 md:px-0">
             {questions[currentQIndex] ? (
               <>
                 <motion.h2
                   key={questions[currentQIndex].word}
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="text-3xl md:text-7xl font-mono font-bold tracking-tighter dark:text-white text-slate-900 px-4"
+                  className="text-2xl md:text-7xl font-mono font-bold tracking-tighter dark:text-white text-slate-900 px-2 md:px-4"
                 >
                   {questions[currentQIndex].word}
                 </motion.h2>
@@ -936,7 +940,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                       key={`${currentQIndex}-${idx}`}
                       onClick={() => handleChoice(opt)}
                       disabled={hasAnsweredCurrent || !isGameConnected}
-                      className="ww-choice p-4 md:p-8 text-xs md:text-base active:scale-[0.99] disabled:cursor-not-allowed"
+                      className="ww-choice p-3 md:p-8 text-[11px] md:text-base active:scale-[0.99] disabled:cursor-not-allowed"
                     >
                       {opt}
                     </button>
@@ -955,14 +959,14 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         )}
 
         {mode === 'pvp_tactics' && (
-          <div className="space-y-6 md:space-y-12 w-full max-w-2xl text-center px-6 md:px-0">
+          <div className="space-y-4 md:space-y-12 w-full max-w-2xl text-center px-2 md:px-0">
             <div className="space-y-2">
               <span className="text-[10px] font-black tracking-[0.4em] text-cyan-600">语法挑战</span>
               <motion.h2
                 key={questions[currentQIndex]?.prompt || 'loading'}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-lg md:text-3xl font-bold dark:text-white text-slate-900 px-4 leading-relaxed italic"
+                className="text-base md:text-3xl font-bold dark:text-white text-slate-900 px-2 md:px-4 leading-relaxed italic"
               >
                 {questions[currentQIndex]?.prompt || (status === 'READY' ? '准备中…' : '正在加载题目…')}
               </motion.h2>
@@ -973,7 +977,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                   key={opt}
                   onClick={() => handleChoice(opt)}
                   disabled={hasAnsweredCurrent || !isGameConnected}
-                  className="ww-choice p-4 md:p-6 text-xs md:text-lg active:scale-[0.99] disabled:opacity-50"
+                  className="ww-choice p-3 md:p-6 text-[11px] md:text-lg active:scale-[0.99] disabled:opacity-50"
                 >
                   {opt}
                 </button>
@@ -988,14 +992,14 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         )}
 
         {mode === 'pvp_chant' && (
-          <div className="space-y-6 md:space-y-12 w-full max-w-2xl text-center px-6 md:px-0">
+          <div className="space-y-4 md:space-y-12 w-full max-w-2xl text-center px-2 md:px-0">
             <div className="space-y-2">
               <span className="text-[10px] font-black tracking-[0.4em] text-cyan-600">咏唱挑战</span>
               <motion.h2
                 key={questions[currentQIndex]?.prompt || 'loading'}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-lg md:text-3xl font-bold dark:text-white text-slate-900 px-4 leading-relaxed italic"
+                className="text-base md:text-3xl font-bold dark:text-white text-slate-900 px-2 md:px-4 leading-relaxed italic"
               >
                 {questions[currentQIndex]?.prompt || (status === 'READY' ? '准备中…' : '正在加载题目…')}
               </motion.h2>
@@ -1006,7 +1010,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                   key={opt}
                   onClick={() => handleChoice(opt)}
                   disabled={hasAnsweredCurrent || !isGameConnected}
-                  className="ww-choice p-4 md:p-6 text-xs md:text-lg active:scale-[0.99] disabled:opacity-50"
+                  className="ww-choice p-3 md:p-6 text-[11px] md:text-lg active:scale-[0.99] disabled:opacity-50"
                 >
                   {opt}
                 </button>

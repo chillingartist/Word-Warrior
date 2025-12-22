@@ -272,7 +272,8 @@ const BattleScene: React.FC<BattleSceneProps> = ({ playerIds, enemyIds, combatEv
         });
     }
 
-    return <div ref={parentEl} className="w-full h-[300px] md:h-[400px] overflow-hidden rounded-3xl" />;
+    // Mobile needs a shorter scene height to keep answer options above the bottom nav.
+    return <div ref={parentEl} className="w-full h-[220px] sm:h-[260px] md:h-[400px] overflow-hidden rounded-3xl" />;
 };
 
 export default BattleScene;
