@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, PenTool, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { INITIAL_STATS, NAVIGATION, TRAINING_MODES, PVP_MODES } from './constants.tsx';
 import { UserStats, Rank } from './types';
 import { getUserStats, updateUserStats, addMasteredWord } from './services/databaseService';
@@ -22,7 +22,6 @@ import Leaderboard from './components/Leaderboard';
 import AchievementsPanel from './components/AchievementsPanel';
 import ShopPanel from './components/Shop/ShopPanel';
 import MatchHistory from './components/MatchHistory';
-import CustomizerPanel from './components/Shop/CustomizerPanel';
 
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { WarriorProvider, useWarrior } from './contexts/WarriorContext';
@@ -214,7 +213,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
   };
 
   const [showShop, setShowShop] = useState(false);
-  const [showCustomizer, setShowCustomizer] = useState(false);
 
   // ... (keep renderScholarPath)
 
@@ -222,29 +220,17 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
     <div className="max-w-xl mx-auto space-y-8 pt-4 px-4 pb-32">
       {/* 1. Main Stats */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <User size={16} className="text-slate-400" />
-            <h2 className="text-[12px] font-black uppercase tracking-widest text-slate-500">战士档案 (Warrior Profile)</h2>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowCustomizer(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-wider"
-            >
-              <PenTool size={12} /> Customize
-            </button>
-            <button
-              onClick={() => setShowShop(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-wider"
-            >
-              <ShoppingBag size={12} /> Armory
-            </button>
-          </div>
+        <div className="flex items-center justify-end mb-2">
+          <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 px-4 py-2 ww-btn ww-btn--accent rounded-2xl text-[10px]"
+          >
+            <ShoppingBag size={14} /> 商城
+          </button>
         </div>
         <div className="ww-surface p-6 rounded-[2.5rem] backdrop-blur-sm">
           <StatsPanel stats={stats} username={user?.user_metadata?.username || 'Word Warrior'} />
-          <div className="mt-8 border-t border-slate-700/50 pt-8">
+          <div className="mt-8 border-t border-[color:var(--ww-stroke-soft)] pt-8">
             <MatchHistory userId={userId} />
           </div>
         </div>
@@ -267,16 +253,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
 
       <AnimatePresence>
         {showShop && <ShopPanel onClose={() => setShowShop(false)} />}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showCustomizer && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowCustomizer(false)}>
-            <div onClick={e => e.stopPropagation()}>
-              <CustomizerPanel onClose={() => setShowCustomizer(false)} />
-            </div>
-          </div>
-        )}
       </AnimatePresence>
     </div>
   );

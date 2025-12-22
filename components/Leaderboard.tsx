@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
 const LeaderRow: React.FC<{ leader: any }> = ({ leader }) => (
-  <tr className={`group transition-colors ${leader.isUser ? 'bg-indigo-500/10 dark:bg-indigo-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-    <td className={`px-4 py-4 md:px-8 md:py-6 text-sm font-black ${leader.isUser ? 'text-indigo-600' : 'text-slate-400'}`}>
+  <tr className={`group transition-colors ${leader.isUser ? 'bg-[rgba(252,203,89,0.35)]' : 'hover:bg-[rgba(255,255,255,0.18)]'}`}>
+    <td className={`px-4 py-4 md:px-8 md:py-6 text-sm font-black ${leader.isUser ? 'text-[color:var(--ww-stroke)]' : 'ww-muted'}`}>
       #{leader.rank}
     </td>
     <td className="px-4 py-4 md:px-8 md:py-6">
@@ -14,31 +14,37 @@ const LeaderRow: React.FC<{ leader: any }> = ({ leader }) => (
         <div className="relative shrink-0">
           <img
             src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leader.name}`}
-            className={`w-7 h-7 md:w-10 md:h-10 rounded-full border ${leader.isUser ? 'border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'border-slate-200 dark:border-slate-800'} bg-white dark:bg-slate-800`}
+            className="w-7 h-7 md:w-10 md:h-10 rounded-full bg-white"
+            style={{
+              border: leader.isUser ? '3px solid var(--ww-stroke)' : '2px solid rgba(43,23,63,0.22)',
+              boxShadow: leader.isUser ? '0 0 0 4px rgba(252,203,89,0.55)' : undefined,
+            }}
             alt=""
           />
-          {leader.isUser && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-white dark:border-slate-900" />}
+          {leader.isUser && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full" style={{ background: 'rgba(16,185,129,0.95)', border: '2px solid var(--ww-surface)' }} />}
         </div>
-        <span className={`font-bold text-xs md:text-sm truncate max-w-[80px] md:max-w-none ${leader.isUser ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-white'}`}>
+        <span className={`font-black text-xs md:text-sm truncate max-w-[80px] md:max-w-none ${leader.isUser ? 'ww-ink' : 'ww-ink'}`}>
           {leader.name}
         </span>
       </div>
     </td>
     <td className="px-4 py-4 md:px-8 md:py-6">
-      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 md:px-3 md:py-1 rounded-md">
+      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 md:px-3 md:py-1 rounded-xl border-2"
+        style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)', color: 'rgba(26,15,40,0.75)' }}
+      >
         {leader.title}
       </span>
     </td>
     <td className="px-8 py-6 hidden md:table-cell">
-      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Lvl {leader.level}</span>
+      <span className="text-xs font-black ww-muted">Lvl {leader.level}</span>
     </td>
     <td className="px-8 py-6 hidden lg:table-cell">
       <div className="flex items-center gap-2">
         <TrendingUp size={14} className="text-emerald-500" />
-        <span className="text-sm font-bold text-slate-800 dark:text-white">{leader.winRate}</span>
+        <span className="text-sm font-black ww-ink">{leader.winRate}</span>
       </div>
     </td>
-    <td className={`px-4 py-4 md:px-8 md:py-6 text-right font-black rpg-font text-xs md:text-base ${leader.isUser ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>
+    <td className={`px-4 py-4 md:px-8 md:py-6 text-right font-black rpg-font text-xs md:text-base ${leader.isUser ? 'ww-ink' : 'ww-ink'}`}>
       {leader.points}
     </td>
   </tr>
@@ -113,8 +119,8 @@ const Leaderboard: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto py-6 space-y-8 px-2 md:px-0">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl md:text-4xl font-black rpg-font tracking-tighter uppercase dark:text-white text-slate-900 underline decoration-indigo-500 decoration-4 underline-offset-8">排行榜</h2>
-        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">全球实时数据 • 竞争白热化</p>
+        <h2 className="text-3xl md:text-4xl font-black rpg-font tracking-tighter uppercase text-white">排行榜</h2>
+        <p className="text-white/70 font-black text-[10px] uppercase tracking-[0.3em]">全球实时数据 • 竞争白热化</p>
       </div>
 
       {loading ? (
@@ -128,31 +134,46 @@ const Leaderboard: React.FC = () => {
             {leaders.slice(0, 3).map((leader) => (
               <motion.div
                 key={leader.rank}
-                whileHover={{ y: -5 }}
-                className={`relative p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border-2 flex flex-col items-center text-center transition-all ${leader.rank === 1 ? 'dark:bg-amber-500/10 bg-amber-50 border-amber-500/50 shadow-amber-500/10 shadow-xl' :
-                  leader.rank === 2 ? 'dark:bg-slate-400/10 bg-slate-50 border-slate-400/50 shadow-slate-400/5 shadow-lg' :
-                    'dark:bg-orange-900/10 bg-orange-50 border-orange-900/40 shadow-orange-900/5 shadow-lg'
-                  }`}
+                whileHover={{ y: -3 }}
+                className="ww-surface ww-surface--soft relative p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] flex flex-col items-center text-center transition-all"
+                style={{
+                  boxShadow:
+                    leader.rank === 1
+                      ? '0 14px 30px rgba(0,0,0,0.22), 0 0 0 6px rgba(252,203,89,0.45)'
+                      : leader.rank === 2
+                        ? '0 14px 30px rgba(0,0,0,0.18), 0 0 0 6px rgba(43,23,63,0.12)'
+                        : '0 14px 30px rgba(0,0,0,0.18), 0 0 0 6px rgba(234,88,12,0.18)',
+                }}
               >
-                <div className="absolute -top-3 bg-white dark:bg-slate-900 border-2 border-inherit px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                  {leader.rank === 1 ? <Crown size={12} className="text-amber-500" /> : <Medal size={12} className="text-inherit" />}
-                  Rank {leader.rank}
+                <div
+                  className="absolute -top-3 px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2"
+                  style={{
+                    background: 'rgba(252,203,89,0.95)',
+                    border: '3px solid var(--ww-stroke)',
+                    boxShadow: '0 6px 0 rgba(0,0,0,0.18)',
+                    color: 'black',
+                  }}
+                >
+                  {leader.rank === 1 ? <Crown size={12} className="text-black" /> : <Medal size={12} className="text-black" />}
+                  TOP {leader.rank}
                 </div>
                 <img
                   src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${leader.name}`}
-                  className="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-white dark:border-slate-800 shadow-md mb-3 bg-white dark:bg-slate-800"
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-full mb-3 bg-white"
+                  style={{ border: '3px solid var(--ww-stroke)', boxShadow: '0 8px 0 rgba(0,0,0,0.18)' }}
                   alt={leader.name}
                 />
-                <h3 className="text-lg font-black rpg-font mb-0.5 dark:text-white text-slate-900 truncate w-full px-2">{leader.name}</h3>
-                <span className="text-[8px] md:text-[9px] font-black uppercase text-indigo-500 dark:text-indigo-400 mb-3">{leader.title}</span>
-                <div className="flex justify-around w-full pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-400 uppercase">Points</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">{leader.points}</p>
+                <h3 className="text-lg font-black rpg-font mb-0.5 ww-ink truncate w-full px-2">{leader.name}</h3>
+                <span className="text-[8px] md:text-[9px] font-black uppercase ww-muted mb-3">{leader.title}</span>
+
+                <div className="w-full mt-2 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl border-2 px-3 py-2" style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)' }}>
+                    <div className="text-[8px] font-black uppercase ww-muted">分数</div>
+                    <div className="text-xs font-black ww-ink tabular-nums">{leader.points}</div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-400 uppercase">Lvl</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">{leader.level}</p>
+                  <div className="rounded-2xl border-2 px-3 py-2" style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)' }}>
+                    <div className="text-[8px] font-black uppercase ww-muted">等级</div>
+                    <div className="text-xs font-black ww-ink tabular-nums">{leader.level}</div>
                   </div>
                 </div>
               </motion.div>
@@ -161,9 +182,9 @@ const Leaderboard: React.FC = () => {
 
           {/* Main Leaderboard Table */}
           <div className="space-y-6">
-            <div className="dark:bg-slate-900/40 bg-white border dark:border-slate-800 border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="ww-surface ww-surface--soft rounded-[2rem] overflow-hidden">
               <table className="w-full text-left border-collapse table-fixed">
-                <thead className="dark:bg-slate-950 bg-slate-50 text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b dark:border-slate-800 border-slate-200">
+                <thead className="text-[9px] md:text-[10px] font-black uppercase tracking-widest border-b" style={{ color: 'rgba(26,15,40,0.72)', borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.22)' }}>
                   <tr>
                     <th className="px-4 py-4 md:px-8 md:py-6 w-[15%] md:w-24">排名</th>
                     <th className="px-4 py-4 md:px-8 md:py-6 w-[35%]">武者</th>
@@ -173,7 +194,7 @@ const Leaderboard: React.FC = () => {
                     <th className="px-4 py-4 md:px-8 md:py-6 text-right w-[25%] md:w-32">分数</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y dark:divide-slate-800 divide-slate-100">
+                <tbody className="divide-y" style={{ borderColor: 'rgba(43,23,63,0.16)' }}>
                   {leaders.slice(3).map((leader) => (
                     <LeaderRow key={leader.rank} leader={leader} />
                   ))}
@@ -184,24 +205,34 @@ const Leaderboard: React.FC = () => {
             {/* Separator / Your Position Section */}
             <div className="relative flex items-center justify-center py-4">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-dashed dark:border-slate-800 border-slate-200" />
+                <div className="w-full border-t border-dashed" style={{ borderColor: 'rgba(255,255,255,0.25)' }} />
               </div>
-              <div className="relative px-6 bg-slate-50 dark:bg-[#020617] flex items-center gap-2">
-                <User size={14} className="text-indigo-500" />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">你的实时顺位 (Your Standing)</span>
+              <div className="relative px-6 flex items-center gap-2">
+                <User size={14} style={{ color: 'var(--ww-accent)' }} />
+                <span
+                  className="px-3 py-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] rounded-full"
+                  style={{
+                    background: 'rgba(252,203,89,0.95)',
+                    border: '3px solid var(--ww-stroke)',
+                    boxShadow: '0 6px 0 rgba(0,0,0,0.18)',
+                    color: 'black',
+                  }}
+                >
+                  我的排名
+                </span>
               </div>
             </div>
 
-            <div className="dark:bg-slate-900/40 bg-white border-2 border-indigo-500/30 rounded-[2rem] overflow-hidden shadow-lg shadow-indigo-500/5">
+            <div className="ww-surface ww-surface--soft rounded-[2rem] overflow-hidden">
               <table className="w-full text-left border-collapse table-fixed">
-                <tbody className="divide-y dark:divide-slate-800 divide-slate-100">
+                <tbody className="divide-y" style={{ borderColor: 'rgba(43,23,63,0.16)' }}>
                   {userNeighbors.map((leader) => (
                     <LeaderRow key={leader.rank} leader={leader} />
                   ))}
                   {userNeighbors.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-4 text-center text-slate-500 text-sm">
-                        You are seemingly not in the top 50 yet! Keep fighting!
+                      <td colSpan={6} className="px-4 py-6 text-center ww-muted text-sm font-black">
+                        你暂未进入前 50，继续冲刺！
                       </td>
                     </tr>
                   )}
