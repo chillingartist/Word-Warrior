@@ -4,6 +4,7 @@ import { writingService } from '../../services/writingService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Send, ArrowLeft, PenTool, Sparkles } from 'lucide-react';
 import WritingResultDisplay from './WritingResult';
+import XPNotification from '../ui/XPNotification';
 
 interface WritingWorkspaceProps {
     material: WritingMaterial;
@@ -16,6 +17,8 @@ const WritingWorkspace: React.FC<WritingWorkspaceProps> = ({ material, onBack, o
     const [content, setContent] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [result, setResult] = useState<WritingResult | null>(null);
+    const [showXPNotification, setShowXPNotification] = useState(false);
+    const [xpEarned, setXpEarned] = useState(0);
 
     const wordCount = content.trim().split(/\s+/).filter(w => w.length > 0).length;
     const minWords = 20;
@@ -34,6 +37,8 @@ const WritingWorkspace: React.FC<WritingWorkspaceProps> = ({ material, onBack, o
             if (response.success && response.result) {
                 setResult(response.result);
                 if (response.xpAwarded > 0) {
+                    setXpEarned(response.xpAwarded);
+                    setShowXPNotification(true);
                     onComplete(response.xpAwarded);
                 }
                 // Force scroll to top or show success feedback
@@ -72,7 +77,7 @@ const WritingWorkspace: React.FC<WritingWorkspaceProps> = ({ material, onBack, o
                                 onChange={(e) => setContent(e.target.value)}
                                 disabled={isSubmitting || !!result}
                                 placeholder="Start writing here..."
-                                className="w-full h-full dark:bg-slate-950 bg-slate-50 border-2 dark:border-slate-800 border-slate-200 rounded-xl p-4 focus:border-fuchsia-500 dark:focus:border-fuchsia-400 outline-none transition-all resize-none font-medium leading-relaxed dark:text-white text-slate-800"
+                                className="custom-scrollbar w-full h-full min-h-[600px] dark:bg-slate-950 bg-slate-50 border-2 dark:border-slate-800 border-slate-200 rounded-xl p-4 focus:border-fuchsia-500 dark:focus:border-fuchsia-400 outline-none transition-all resize-none font-medium leading-relaxed dark:text-white text-slate-800"
                             />
                             <div className="absolute bottom-4 right-4 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
                                 {wordCount} words
@@ -120,6 +125,12 @@ const WritingWorkspace: React.FC<WritingWorkspaceProps> = ({ material, onBack, o
                     </div>
                 </div>
             </div>
+
+            <XPNotification
+                amount={xpEarned}
+                isVisible={showXPNotification}
+                onClose={() => setShowXPNotification(false)}
+            />
         </div>
     );
 };
