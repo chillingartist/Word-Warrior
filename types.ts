@@ -172,3 +172,41 @@ export interface WritingResult {
   feedback: string;
   corrections: string[];
 }
+
+// Speaking Assessment Types
+export interface SpeakingQuestion {
+  id: string;
+  question_text: string;
+  difficulty: '初级' | '中级' | '高级';
+  category: 'Daily Chat' | 'Travel' | 'Business' | 'Academic' | 'Tech';
+  expected_duration: number; // in seconds
+  created_at: string;
+}
+
+export interface AssessmentScore {
+  total_score: number;
+  pronunciation_score: number;
+  fluency_score: number;
+  vocabulary_score: number;
+  content_score: number;
+  on_topic_score: number;
+  feedback_text: string;
+}
+
+export interface SpeakingAssessment {
+  id: string;
+  user_id: string;
+  question_id: string;
+  question?: SpeakingQuestion;
+  audio_url?: string;
+  total_score: number;
+  pronunciation_score: number;
+  fluency_score: number;
+  vocabulary_score: number;
+  content_score: number;
+  on_topic_score: number;
+  feedback_text: string;
+  exp_awarded: number;
+  created_at: string;
+}
+
