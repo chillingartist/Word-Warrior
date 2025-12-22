@@ -15,6 +15,13 @@ export interface PvPRoom {
     }[];
     status: 'active' | 'finished';
     winner_id: string | null;
+    player1_score_change?: number;
+    player2_score_change?: number;
+    player1_start_points?: number;
+    player2_start_points?: number;
+    player1_start_tier?: string;
+    player2_start_tier?: string;
+    match_details?: any; // JSONB { player1: {...}, player2: {...} }
 }
 
 export type JoinStatus = 'matched' | 'waiting' | 'error';
@@ -157,6 +164,9 @@ export interface MatchHistoryItem {
     score: string; // e.g. "100 - 0"
     createdAt: string;
     isResignation?: boolean;
+    scoreChange?: number;
+    startRankTier?: string;
+    startRankPoints?: number;
 }
 
 /**
@@ -247,6 +257,11 @@ export const getMatchHistory = async (userId: string, page: number = 0, limit: n
                 if (myFinalHp > 0) isResignation = true;
             }
 
+            // Rank Logic
+            const myScoreChange = isP1 ? room.player1_score_change : room.player2_score_change;
+            const myStartTier = isP1 ? room.player1_start_tier : room.player2_start_tier;
+            const myStartPoints = isP1 ? room.player1_start_points : room.player2_start_points;
+
             return {
                 id: room.id,
                 mode: mode,
@@ -255,7 +270,10 @@ export const getMatchHistory = async (userId: string, page: number = 0, limit: n
                 result: result,
                 score: isP1 ? `${room.player1_hp} - ${room.player2_hp}` : `${room.player2_hp} - ${room.player1_hp}`,
                 createdAt: room.created_at,
-                isResignation: isResignation
+                isResignation: isResignation,
+                scoreChange: myScoreChange || 0,
+                startRankTier: myStartTier || 'Bronze',
+                startRankPoints: myStartPoints || 500
             };
         });
 

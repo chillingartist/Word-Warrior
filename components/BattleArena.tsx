@@ -47,6 +47,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   const [hasAnsweredCurrent, setHasAnsweredCurrent] = useState(false);
   const [searchingTime, setSearchingTime] = useState(0);
   const [isGameConnected, setIsGameConnected] = useState(false); // New state to block interaction
+  const [matchDetails, setMatchDetails] = useState<any>(null); // Store score breakdown
 
   // State Refs for Subscription Callbacks (Avoid Stale Closures)
   const stateRef = useRef({
@@ -317,6 +318,35 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     };
   };
 
+  // ============================================
+  // SHARED EFFECTS (Moved Up)
+  // ============================================
+
+  const triggerEffect = (val: number, target: 'player' | 'enemy', type?: 'crit' | 'block') => {
+    const id = Date.now() + Math.random();
+    setDamageNumbers(prev => [...prev, { id, val, target, type }]);
+    setIsShaking(target);
+
+    // Play Sound
+    if (type === 'block') {
+      // soundService.playBlock(); // If implemented
+    } else {
+      soundService.playAttack(type === 'crit' ? 'fire' : 'slash');
+    }
+
+    // Trigger Visual Event
+    setCombatEvent({
+      type: type === 'block' ? 'block' : 'attack',
+      target: target,
+      damage: val
+    });
+    // Reset event after short animation time
+    setTimeout(() => setCombatEvent(null), 500);
+
+    setTimeout(() => setIsShaking(null), 300);
+    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== id)), 1200);
+  };
+
   // AI MATCH LOGIC
   const startAiMatch = async () => {
     console.log('🤖 Starting AI Match...');
@@ -526,6 +556,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         setStatus('YOU LOSE!');
         // onDefeat(); // Waiting for manual exit
       }
+
+      // Set Match Details if available
+      if (room.match_details && myRole) {
+        setMatchDetails(room.match_details[myRole]);
+      }
       return;
     }
 
@@ -665,30 +700,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // SHARED EFFECTS
   // ============================================
 
-  const triggerEffect = (val: number, target: 'player' | 'enemy', type?: 'crit' | 'block') => {
-    const id = Date.now() + Math.random();
-    setDamageNumbers(prev => [...prev, { id, val, target, type }]);
-    setIsShaking(target);
 
-    // Play Sound
-    if (type === 'block') {
-      // soundService.playBlock(); // If implemented
-    } else {
-      soundService.playAttack(type === 'crit' ? 'fire' : 'slash');
-    }
-
-    // Trigger Visual Event
-    setCombatEvent({
-      type: type === 'block' ? 'block' : 'attack',
-      target: target, // The target in combatEvent IS the victim 
-      damage: val
-    });
-    // Reset event after short animation time
-    setTimeout(() => setCombatEvent(null), 500);
-
-    setTimeout(() => setIsShaking(null), 300);
-    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== id)), 1200);
-  };
 
   // ============================================
   // OLD MODES LOGIC (Tactics, Chant)
@@ -1045,6 +1057,35 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                   {status === 'YOU WIN!' ? 'Victory Achieved' : 'Defeat accepted'}
                 </p>
               </div>
+
+              {matchDetails && (
+                <div className="bg-slate-800/50 rounded-xl p-6 text-left space-y-2 min-w-[250px] border border-slate-700">
+                  <div className="flex justify-between text-slate-400 font-bold">
+                    <span>Base Score:</span>
+                    <span className={matchDetails.base >= 0 ? 'text-green-400' : 'text-red-400'}>{matchDetails.base > 0 ? '+' : ''}{matchDetails.base}</span>
+                  </div>
+                  {matchDetails.hp_bonus > 0 && (
+                    <div className="flex justify-between text-slate-400 font-bold">
+                      <span>HP Bonus:</span>
+                      <span className="text-green-400">+{matchDetails.hp_bonus}</span>
+                    </div>
+                  )}
+                  {matchDetails.streak_bonus > 0 && (
+                    <div className="flex justify-between text-slate-400 font-bold">
+                      <span>Streak Bonus:</span>
+                      <span className="text-green-400">+{matchDetails.streak_bonus}</span>
+                    </div>
+                  )}
+                  <div className="h-px bg-slate-600 my-2" />
+                  <div className="flex justify-between text-white font-black text-xl">
+                    <span>Total:</span>
+                    <span className={(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus) > 0 ? '+' : ''}
+                      {matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-4 justify-center">
                 <button
