@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, PenTool, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { INITIAL_STATS, NAVIGATION, TRAINING_MODES, PVP_MODES } from './constants.tsx';
 import { UserStats, Rank } from './types';
 import { getUserStats, updateUserStats, addMasteredWord } from './services/databaseService';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
     <ThemeProvider>
       <WarriorProvider>
         <AuthenticatedApp userId={user.id} />
+        <Analytics />
       </WarriorProvider>
     </ThemeProvider>
   );
