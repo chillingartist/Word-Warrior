@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, PenTool, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { INITIAL_STATS, NAVIGATION, TRAINING_MODES, PVP_MODES } from './constants.tsx';
 import { UserStats, Rank } from './types';
 import { getUserStats, updateUserStats, addMasteredWord } from './services/databaseService';
@@ -22,11 +22,11 @@ import Leaderboard from './components/Leaderboard';
 import AchievementsPanel from './components/AchievementsPanel';
 import ShopPanel from './components/Shop/ShopPanel';
 import MatchHistory from './components/MatchHistory';
-import CustomizerPanel from './components/Shop/CustomizerPanel';
 
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { WarriorProvider } from './contexts/WarriorContext';
+import { WarriorProvider, useWarrior } from './contexts/WarriorContext';
 import { GameBottomNav } from './components/GameBottomNav';
+import { TopStatusBar } from './components/TopStatusBar';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -51,7 +51,8 @@ interface AuthenticatedAppProps {
 
 const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
   const { user } = useAuth();
-  const { themeMode, getColorClass, primaryColor } = useTheme(); // Use Theme Context
+  const { themeMode, getColorClass, primaryColor, avatar } = useTheme(); // Use Theme Context
+  const { state: warriorState } = useWarrior();
 
   const [stats, setStats] = useState<UserStats>(() => {
     const saved = localStorage.getItem(`ww_stats_${userId}`);
@@ -141,69 +142,69 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
   };
 
   const renderScholarPath = () => {
-    const modeStyles: Record<string, string> = {
-      listening: 'from-cyan-500 to-blue-600 shadow-cyan-500/20',
-      oral: 'from-amber-400 to-orange-600 shadow-orange-500/20',
-      reading: 'from-indigo-500 to-violet-700 shadow-indigo-500/20',
-      writing: 'from-fuchsia-500 to-pink-600 shadow-pink-500/20',
+    const modeStyles: Record<string, { ring: string; badgeFrom: string; badgeTo: string }> = {
+      listening: { ring: 'rgba(34,211,238,0.35)', badgeFrom: '#22d3ee', badgeTo: '#2563eb' },
+      oral: { ring: 'rgba(252,203,89,0.45)', badgeFrom: '#FCCB59', badgeTo: '#f59e0b' },
+      reading: { ring: 'rgba(99,102,241,0.35)', badgeFrom: '#6366f1', badgeTo: '#7c3aed' },
+      writing: { ring: 'rgba(236,72,153,0.35)', badgeFrom: '#ec4899', badgeTo: '#a855f7' },
     };
 
     return (
       <div className="max-w-3xl mx-auto space-y-8 pt-6 pb-40 px-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-indigo-500/10 rounded-lg">
-            <Star size={20} className="text-indigo-500" />
-          </div>
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">学者之路</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">提升基础数值以迎接挑战</p>
-          </div>
-        </div>
-
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {TRAINING_MODES.filter(m => m.id !== 'vocab').map((mode) => (
-            <motion.button
-              key={mode.id}
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveTab(mode.id)}
-              className={`relative aspect-square flex flex-col items-center justify-center p-6 rounded-[2rem] bg-gradient-to-br ${modeStyles[mode.id] || 'from-slate-700 to-slate-900'} shadow-2xl border border-white/10 group overflow-hidden`}
-            >
-              {/* Glass Reflection Effect */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
+          {TRAINING_MODES.filter(m => m.id !== 'vocab').map((mode) => {
+            const badge = modeStyles[mode.id];
+            const statLabel = mode.id === 'oral' ? 'EXP' : (mode.stat || '');
+            const title = mode.name.replace('磨炼', '').replace('修行', '').replace('试炼', '').replace('工坊', '');
 
-              <div className="relative z-10 flex flex-col items-center gap-4">
-                <div className="p-4 rounded-2xl bg-white/20 backdrop-blur-md text-white shadow-lg transition-transform group-hover:scale-110">
-                  {React.cloneElement(mode.icon as any, { size: 32 })}
+            return (
+              <motion.button
+                key={mode.id}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab(mode.id)}
+                className="ww-surface ww-surface--soft relative aspect-square flex flex-col items-center justify-center p-5 rounded-[22px]"
+                style={{
+                  boxShadow: `0 12px 26px rgba(0,0,0,0.18), 0 0 0 5px ${badge?.ring ?? 'rgba(255,255,255,0.12)'}`,
+                }}
+              >
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: `linear-gradient(135deg, ${badge?.badgeFrom ?? '#6b7280'}, ${badge?.badgeTo ?? '#111827'})`,
+                    border: '2px solid rgba(43,23,63,0.22)',
+                    boxShadow: '0 6px 0 rgba(0,0,0,0.20)',
+                    color: 'white',
+                  }}
+                >
+                  {React.cloneElement(mode.icon as any, { size: 26 })}
                 </div>
-                <div className="text-center">
-                  <h3 className="font-black text-sm md:text-base text-white uppercase tracking-tight mb-1">
-                    {mode.name.replace('磨炼', '').replace('修行', '').replace('试炼', '').replace('工坊', '')}
-                  </h3>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/20 text-white/90 text-[9px] font-black uppercase tracking-widest">
-                    <Target size={10} />
-                    {mode.stat} +
-                  </div>
-                </div>
-              </div>
 
-              {/* Decorative Corner Icon */}
-              <div className="absolute -bottom-2 -right-2 opacity-10 text-white group-hover:scale-150 transition-transform">
-                {React.cloneElement(mode.icon as any, { size: 64 })}
-              </div>
-            </motion.button>
-          ))}
+                <div className="text-center px-2">
+                  <div className="text-[13px] font-black ww-ink">{title}</div>
+                  <div className="mt-1 text-[10px] font-black uppercase tracking-widest ww-muted">+ {statLabel}</div>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
 
         {/* Tip section */}
-        <div className="p-6 rounded-3xl dark:bg-slate-900/50 bg-white border dark:border-slate-800 border-slate-200 shadow-sm flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-            <Zap size={18} className="text-indigo-500" />
+        <div className="ww-surface ww-surface--soft p-6 rounded-3xl flex items-start gap-4">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              background: 'rgba(252,203,89,0.95)',
+              border: '3px solid var(--ww-stroke)',
+              boxShadow: '0 6px 0 rgba(0,0,0,0.25)',
+            }}
+          >
+            <Zap size={18} className="text-black" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xs font-black uppercase tracking-widest dark:text-slate-200 text-slate-800">修炼指南</h4>
-            <p className="text-[10px] font-medium leading-relaxed dark:text-slate-500 text-slate-500 uppercase tracking-tight">
-              听力增加防御 (DEF)，阅读增加生命 (HP)，口语增加法力 (Mana)，写作增加攻击 (ATK)。合理的属性搭配是获胜的关键。
+            <h4 className="text-xs font-black uppercase tracking-widest ww-ink">修炼指南</h4>
+            <p className="text-[10px] font-black leading-relaxed ww-muted uppercase tracking-tight">
+              听力增加防御 (DEF)，阅读提升生命上限 (HP)，写作增加攻击 (ATK)，口语增加经验 (EXP)。合理的属性搭配是获胜的关键。
             </p>
           </div>
         </div>
@@ -212,7 +213,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
   };
 
   const [showShop, setShowShop] = useState(false);
-  const [showCustomizer, setShowCustomizer] = useState(false);
 
   // ... (keep renderScholarPath)
 
@@ -220,29 +220,17 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
     <div className="max-w-xl mx-auto space-y-8 pt-4 px-4 pb-32">
       {/* 1. Main Stats */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <User size={16} className="text-slate-400" />
-            <h2 className="text-[12px] font-black uppercase tracking-widest text-slate-500">战士档案 (Warrior Profile)</h2>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowCustomizer(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-wider"
-            >
-              <PenTool size={12} /> Customize
-            </button>
-            <button
-              onClick={() => setShowShop(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-wider"
-            >
-              <ShoppingBag size={12} /> Armory
-            </button>
-          </div>
+        <div className="flex items-center justify-end mb-2">
+          <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 px-4 py-2 ww-btn ww-btn--accent rounded-2xl text-[10px]"
+          >
+            <ShoppingBag size={14} /> 商城
+          </button>
         </div>
         <div className="ww-surface p-6 rounded-[2.5rem] backdrop-blur-sm">
           <StatsPanel stats={stats} username={user?.user_metadata?.username || 'Word Warrior'} />
-          <div className="mt-8 border-t border-slate-700/50 pt-8">
+          <div className="mt-8 border-t border-[color:var(--ww-stroke-soft)] pt-8">
             <MatchHistory userId={userId} />
           </div>
         </div>
@@ -266,16 +254,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
       <AnimatePresence>
         {showShop && <ShopPanel onClose={() => setShowShop(false)} />}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {showCustomizer && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowCustomizer(false)}>
-            <div onClick={e => e.stopPropagation()}>
-              <CustomizerPanel onClose={() => setShowCustomizer(false)} />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 
@@ -288,7 +266,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
       case 'reading': return <div className="pb-32"><ReadingTraining onSuccess={(exp) => handleGainExp(exp, 'hp')} /></div>;
       case 'writing': return <div className="pb-32"><WritingTraining onSuccess={(exp) => handleGainExp(exp, 'atk')} /></div>;
       case 'listening': return <div className="pb-32"><ListeningTraining onSuccess={(exp) => handleGainExp(exp, 'def')} /></div>;
-      case 'oral': return <div className="pb-32"><OralTraining playerStats={stats} onSuccess={(exp) => handleGainExp(exp, 'crit')} /></div>;
+      case 'oral': return <div className="pb-32"><OralTraining playerStats={stats} onSuccess={(exp) => handleGainExp(exp)} /></div>;
       case 'pvp_blitz':
       case 'pvp_tactics':
       case 'pvp_chant':
@@ -305,6 +283,12 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
     <div className="h-screen flex flex-col transition-colors duration-500 overflow-hidden ww-app">
       {/* Mini Header */}
 
+      <TopStatusBar
+        avatar={avatar}
+        username={user?.user_metadata?.username || user?.email || 'Word Warrior'}
+        level={stats.level}
+        gold={warriorState.gold}
+      />
 
       {/* Main Content Area */}
       <main className={`flex-1 overflow-y-auto px-4 custom-scrollbar relative transition-all duration-300 ${isArenaMenuOpen ? 'blur-sm scale-95 opacity-80 pointer-events-none select-none' : ''}`}>

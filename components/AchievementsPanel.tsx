@@ -28,31 +28,34 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ stats }) => {
   const totalCount = processedAchievements.length;
 
   return (
-    <div className="space-y-6">
-      {/* Header & Filter Tabs */}
-      <div className="flex flex-col gap-4">
+    <div className="space-y-4">
+      {/* Header + Filter (VDL) */}
+      <div className="ww-surface ww-surface--soft rounded-[22px] p-4">
         <div className="flex items-center gap-2">
-          <Award size={18} className="text-amber-500" />
-          <h2 className="text-[12px] font-black uppercase tracking-widest text-slate-500">荣耀殿堂 (Achievements)</h2>
-          <div className="ml-auto bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500">
-            {unlockedCount} / {totalCount}
+          <Award size={18} style={{ color: 'var(--ww-accent)' }} />
+          <h2 className="text-[12px] font-black uppercase tracking-widest ww-ink">荣耀殿堂</h2>
+          <div className="ml-auto px-3 py-1.5 ww-pill ww-pill--accent">
+            <span className="text-[10px] font-black text-black tabular-nums">{unlockedCount} / {totalCount}</span>
           </div>
         </div>
-        
-        <div className="flex bg-slate-200 dark:bg-slate-800/50 p-1 rounded-xl">
-          {(['all', 'unlocked', 'locked'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                filter === f 
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              {f === 'all' ? '全部' : f === 'unlocked' ? '已达成' : '未达成'}
-            </button>
-          ))}
+
+        <div className="mt-3 flex gap-2">
+          {(['all', 'unlocked', 'locked'] as const).map((f) => {
+            const isActive = filter === f;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`flex-1 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                  isActive
+                    ? 'bg-[rgba(252,203,89,0.95)] text-black border-[color:var(--ww-stroke)]'
+                    : 'bg-[rgba(255,255,255,0.25)] text-[rgba(26,15,40,0.75)] border-[color:var(--ww-stroke-soft)]'
+                }`}
+              >
+                {f === 'all' ? '全部' : f === 'unlocked' ? '已达成' : '未达成'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -66,41 +69,39 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ stats }) => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className={`relative aspect-square rounded-3xl p-4 flex flex-col items-center justify-center text-center gap-3 border-2 transition-all overflow-hidden group ${
-                ach.isUnlocked 
-                  ? `${ach.bg} dark:bg-opacity-10 bg-opacity-50 border-opacity-30` 
-                  : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-60 grayscale'
+              className={`relative aspect-square rounded-[22px] p-4 flex flex-col items-center justify-center text-center gap-3 transition-all overflow-hidden ${
+                ach.isUnlocked ? 'ww-surface ww-surface--soft' : 'ww-surface ww-surface--soft opacity-65 grayscale'
               }`}
             >
-              {/* Unlock Glow Effect */}
-              {ach.isUnlocked && (
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
-              )}
-
               {/* Icon Container */}
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shadow-sm ${
-                ach.isUnlocked 
-                  ? `bg-white dark:bg-slate-800 ${ach.color} border-current` 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 border-slate-300 dark:border-slate-700'
-              }`}>
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{
+                  background: ach.isUnlocked ? 'rgba(252,203,89,0.95)' : 'rgba(26,15,40,0.10)',
+                  border: `3px solid ${ach.isUnlocked ? 'var(--ww-stroke)' : 'rgba(43,23,63,0.22)'}`,
+                  boxShadow: '0 6px 0 rgba(0,0,0,0.18)',
+                  color: ach.isUnlocked ? 'black' : 'rgba(26,15,40,0.6)',
+                }}
+              >
                 {ach.isUnlocked ? ach.icon : <Lock size={20} />}
               </div>
 
               {/* Text Info */}
               <div className="z-10 w-full px-1">
-                <h4 className={`text-xs font-black uppercase tracking-tight mb-1 truncate ${
-                  ach.isUnlocked ? 'text-slate-800 dark:text-white' : 'text-slate-500'
-                }`}>
+                <h4 className="text-xs font-black uppercase tracking-tight mb-1 truncate ww-ink">
                   {ach.title}
                 </h4>
-                <p className="text-[9px] font-bold text-slate-400 leading-tight line-clamp-2">
+                <p className="text-[9px] font-black ww-muted leading-tight line-clamp-2">
                   {ach.desc}
                 </p>
               </div>
 
               {/* Completed Badge */}
               {ach.isUnlocked && (
-                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                <div
+                  className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full"
+                  style={{ background: 'rgba(16,185,129,0.95)', boxShadow: '0 0 10px rgba(16,185,129,0.55)' }}
+                />
               )}
             </motion.div>
           ))}

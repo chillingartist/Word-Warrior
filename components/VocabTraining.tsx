@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { CheckCircle2, RotateCcw, Zap, Target, Loader2, ArrowRight } from 'lucide-react';
 import { getBatchWords, getRandomDistractors, markWordProgress, getUserLearningStats, Word, LearningStats } from '../services/databaseService';
@@ -55,31 +55,30 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
-      className="absolute inset-0 dark:bg-slate-900 bg-white dark:border-slate-800 border-slate-200 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-between p-8 cursor-pointer active:cursor-grabbing group overflow-visible touch-none"
+      className="absolute inset-0 ww-surface ww-surface--soft rounded-[26px] flex flex-col items-center justify-between p-7 cursor-pointer active:cursor-grabbing overflow-hidden touch-none"
     >
       {/* Header: Progress */}
-      <div className="w-full flex justify-between items-center text-slate-400 font-bold text-xs tracking-widest uppercase select-none">
-        <span>Learning Phase</span>
-        <span>{index + 1} / {total}</span>
+      <div className="w-full flex justify-end items-center select-none">
+        <span className="text-[10px] font-black uppercase tracking-widest ww-muted">
+          {index + 1} / {total}
+        </span>
       </div>
 
       {/* Content */}
       <div className="flex-1 flex flex-col items-center justify-center space-y-8 w-full text-center">
         <div>
-          <h2 className="text-5xl md:text-6xl font-mono font-bold tracking-tight dark:text-white text-slate-900 mb-2 select-none">
+          <h2 className="text-5xl md:text-6xl font-mono font-black tracking-tight ww-ink mb-2 select-none">
             {word.word}
           </h2>
           {word.phonetic && (
-            <p className="text-lg text-slate-500 font-mono">/{word.phonetic}/</p>
+            <p className="text-lg ww-muted font-mono">/{word.phonetic}/</p>
           )}
         </div>
 
-        <div className={`w-full h-[1px] bg-slate-200 dark:bg-slate-800 max-w-[100px] transition-opacity duration-300 ${isRevealed ? 'opacity-100' : 'opacity-0'}`} />
-
-        <div className="space-y-2 min-h-[100px] flex flex-col justify-center">
+        <div className="min-h-[110px] flex flex-col justify-center">
           {!isRevealed ? (
-            <div className="animate-pulse flex flex-col items-center gap-2 text-slate-400">
-              <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Tap to reveal</span>
+            <div className="ww-muted">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-black">轻触显示释义</span>
             </div>
           ) : (
             <motion.div
@@ -88,12 +87,12 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
               className="space-y-2"
             >
               {translations.map((line, i) => (
-                <p key={i} className="text-xl md:text-2xl font-bold text-indigo-500 dark:text-indigo-400 leading-snug">
+                <p key={i} className="text-xl md:text-2xl font-black leading-snug" style={{ color: 'var(--ww-stroke)' }}>
                   {line.trim()}
                 </p>
               ))}
               {word.definition && (
-                <p className="text-sm text-slate-400 max-w-xs mx-auto italic leading-relaxed line-clamp-3 mt-4">
+                <p className="text-sm ww-muted max-w-xs mx-auto italic leading-relaxed line-clamp-3 mt-4">
                   {word.definition.split(/\\n|\n/)[0]}
                 </p>
               )}
@@ -103,8 +102,8 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
       </div>
 
       {/* Footer: Hint */}
-      <div className="text-slate-300 dark:text-slate-700 text-[10px] uppercase tracking-widest font-black">
-        Swipe to continue
+      <div className="text-[10px] uppercase tracking-widest font-black ww-muted">
+        左右滑动继续
       </div>
     </motion.div>
   );
@@ -143,13 +142,13 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, questionIndex, 
   };
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-8">
+    <div className="w-full max-w-md mx-auto space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <span className="text-xs font-black uppercase tracking-widest text-indigo-500">
-          Quiz {questionIndex + 1} / {totalQuestions}
-        </span>
-        <h2 className="text-4xl md:text-5xl font-mono font-bold dark:text-white text-slate-900">
+        <div className="text-[10px] font-black uppercase tracking-widest ww-muted">
+          {questionIndex + 1} / {totalQuestions}
+        </div>
+        <h2 className="text-4xl md:text-5xl font-mono font-black text-white">
           {question.word.word}
         </h2>
       </div>
@@ -161,16 +160,23 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, questionIndex, 
           const isCorrectOption = option.id === question.correctOptionId;
           const showCorrectProcess = selectedParams !== null;
 
-          let btnClass = "dark:bg-slate-800 bg-white border-2 dark:border-slate-700 border-slate-200 hover:border-indigo-500 hover:shadow-lg";
+          let btnClass =
+            "ww-surface ww-surface--soft border-2 rounded-2xl p-5 text-left font-black transition-all transform active:scale-[0.98] flex justify-between items-center";
+          let btnStyle: React.CSSProperties = { borderColor: 'rgba(43,23,63,0.22)', boxShadow: '0 10px 18px rgba(0,0,0,0.14)' };
 
           if (showCorrectProcess) {
             if (isCorrectOption) {
-              btnClass = "bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400";
+              btnClass = `${btnClass} bg-[rgba(16,185,129,0.18)]`;
+              btnStyle = { borderColor: 'rgba(16,185,129,0.75)', boxShadow: '0 10px 18px rgba(0,0,0,0.14)' };
             } else if (isSelected && !isCorrectOption) {
-              btnClass = "bg-red-500/10 border-red-500 text-red-600 dark:text-red-400";
+              btnClass = `${btnClass} bg-[rgba(239,68,68,0.14)]`;
+              btnStyle = { borderColor: 'rgba(239,68,68,0.75)', boxShadow: '0 10px 18px rgba(0,0,0,0.14)' };
             } else {
-              btnClass = "opacity-50 grayscale";
+              btnClass = `${btnClass} opacity-50 grayscale`;
             }
+          } else {
+            // default hover affordance
+            btnStyle = { borderColor: 'rgba(43,23,63,0.22)', boxShadow: '0 10px 18px rgba(0,0,0,0.14)' };
           }
 
           return (
@@ -178,9 +184,10 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, questionIndex, 
               key={option.id}
               onClick={() => handleSelect(option)}
               disabled={selectedParams !== null}
-              className={`p-5 rounded-2xl text-left font-bold transition-all transform active:scale-[0.98] flex justify-between items-center ${btnClass}`}
+              className={btnClass}
+              style={btnStyle}
             >
-              <span className="line-clamp-1">{option.translation?.split('\n')[0]}</span>
+              <span className="line-clamp-1 ww-ink">{option.translation?.split('\n')[0]}</span>
               {showCorrectProcess && isCorrectOption && <CheckCircle2 size={18} />}
             </button>
           );
@@ -207,6 +214,35 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [score, setScore] = useState(0);
+
+  const progress = useMemo(() => {
+    if (mode === 'learning') {
+      const total = Math.max(1, batch.length);
+      const current = Math.min(total, currentIndex + 1);
+      return { label: '背单词进度', current, total };
+    }
+    if (mode === 'quiz') {
+      const total = Math.max(1, quizQuestions.length);
+      const current = Math.min(total, currentIndex + 1);
+      return { label: '测验进度', current, total };
+    }
+    return null;
+  }, [mode, batch.length, quizQuestions.length, currentIndex]);
+
+  const ProgressBar = ({ current, total }: { current: number; total: number }) => {
+    const pct = Math.max(0, Math.min(100, Math.round((current / Math.max(1, total)) * 100)));
+    return (
+      <div className="w-full max-w-md mx-auto mt-3 mb-4">
+        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/85">
+          <span>{progress?.label}</span>
+          <span>{current}/{total}</span>
+        </div>
+        <div className="mt-2 h-3 rounded-full overflow-hidden" style={{ border: '3px solid var(--ww-stroke)', background: 'rgba(253,246,227,0.22)' }}>
+          <div className="h-full" style={{ width: `${pct}%`, background: 'var(--ww-accent)' }} />
+        </div>
+      </div>
+    );
+  };
 
   // Load Batch
   useEffect(() => {
@@ -302,7 +338,8 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
   if (mode === 'learning') {
     const currentWord = batch[currentIndex];
     return (
-      <div className="w-full flex flex-col items-center pt-8">
+      <div className="w-full flex flex-col items-center pt-4">
+        {progress && <ProgressBar current={progress.current} total={progress.total} />}
         <div className="relative w-full max-w-sm md:max-w-md aspect-[3/4.2]">
           <AnimatePresence mode="wait">
             <LearningCard
@@ -321,7 +358,8 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
   if (mode === 'quiz') {
     const currentQuestion = quizQuestions[currentIndex];
     return (
-      <div className="w-full h-full min-h-[500px] flex flex-col items-center justify-center pt-8 px-6">
+      <div className="w-full h-full min-h-[500px] flex flex-col items-center justify-start pt-4 px-6">
+        {progress && <ProgressBar current={progress.current} total={progress.total} />}
         <QuizCard
           key={currentQuestion.word.id}
           question={currentQuestion}

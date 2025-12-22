@@ -27,7 +27,7 @@ export const NAVIGATION = [
 export const TRAINING_MODES = [
   { id: 'vocab', name: '词汇训练', icon: <Swords size={20} />, desc: 'Swipable Cards', stat: 'ATK' },
   { id: 'listening', name: '听力磨炼', icon: <Headphones size={20} />, desc: 'Audio Quiz', stat: 'DEF' },
-  { id: 'oral', name: '口语修行', icon: <Mic2 size={20} />, desc: 'AI Coaching', stat: 'MANA' },
+  { id: 'oral', name: '口语修行', icon: <Mic2 size={20} />, desc: 'AI Coaching', stat: 'EXP' },
   { id: 'reading', name: '阅读试炼', icon: <BookOpen size={20} />, desc: 'Comprehension', stat: 'HP' },
   { id: 'writing', name: '写作工坊', icon: <PenTool size={20} />, desc: 'AI Grading', stat: 'ATK' },
 ];

@@ -1,13 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { type DockNavItemConfig } from './DockNav';
+import React, { useMemo } from 'react';
+import { BookOpen, GraduationCap, Swords, Trophy, User } from 'lucide-react';
 
-type GameBottomNavItem = DockNavItemConfig & {
+type GameBottomNavItem = {
   disabled?: boolean;
-  sprites: {
-    normal: string;
-    active: string;
-    pressed?: string; // only used by arena/battle
-  };
+  id: string;
+  label: string;
+  icon: React.ReactNode;
 };
 
 export type GameBottomNavProps = {
@@ -15,78 +13,33 @@ export type GameBottomNavProps = {
   onSelect: (id: string) => void;
 };
 
-function TextStroke({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="text-white font-black tracking-wide select-none"
-      style={{
-        textShadow:
-          '0 2px 0 rgba(0,0,0,0.85), 2px 0 0 rgba(0,0,0,0.85), -2px 0 0 rgba(0,0,0,0.85), 0 -2px 0 rgba(0,0,0,0.85)',
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function SpriteIcon({
-  src,
-  alt,
-  size = 72,
-}: {
-  src: string;
-  alt: string;
-  size?: number;
-}) {
-  return (
-    <img
-      draggable={false}
-      src={src}
-      alt={alt}
-      style={{
-        imageRendering: 'pixelated',
-        filter: 'drop-shadow(0 4px 0 rgba(0,0,0,0.65))',
-      }}
-      className="select-none pointer-events-none"
-      width={size}
-      height={size}
-    />
-  );
-}
-
 export const GameBottomNav: React.FC<GameBottomNavProps> = ({ activeId, onSelect }) => {
-  const [pressedId, setPressedId] = useState<string | null>(null);
-
   const items: GameBottomNavItem[] = useMemo(
     () => [
       {
         id: 'vocab',
         label: '背单词',
-        sprites: { normal: '/assets/nav/vocab.png', active: '/assets/nav/vocab_active.png' },
+        icon: <BookOpen size={20} />,
       },
       {
         id: 'scholar',
         label: '学习之路',
-        sprites: { normal: '/assets/nav/scholar.png', active: '/assets/nav/scholar_active.png' },
+        icon: <GraduationCap size={20} />,
       },
       {
         id: 'arena',
         label: '对战',
-        sprites: {
-          normal: '/assets/nav/arena.png',
-          active: '/assets/nav/arena_active.png',
-          pressed: '/assets/nav/arena_pressed.png',
-        },
+        icon: <Swords size={20} />,
       },
       {
         id: 'leaderboard',
         label: '排行榜',
-        sprites: { normal: '/assets/nav/leaderboard.png', active: '/assets/nav/leaderboard_active.png' },
+        icon: <Trophy size={20} />,
       },
       {
         id: 'profile',
         label: '档案',
-        sprites: { normal: '/assets/nav/profile.png', active: '/assets/nav/profile_active.png' },
+        icon: <User size={20} />,
       },
     ],
     []
@@ -98,75 +51,44 @@ export const GameBottomNav: React.FC<GameBottomNavProps> = ({ activeId, onSelect
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
     >
       <div className="max-w-lg mx-auto pointer-events-auto">
-        {/* game-like solid background (non-transparent) */}
-        <div
-          className="relative w-full rounded-[16px] px-2.5 pt-2"
-          style={{
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)',
-            // lighter “game panel” palette
-            background: 'linear-gradient(180deg, #6e78a0 0%, #4c5474 100%)',
-            border: '2px solid rgba(255,255,255,0.18)',
-            boxShadow:
-              '0 6px 0 rgba(0,0,0,0.28), 0 10px 18px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.22)',
-          }}
-        >
-          {/* icons only: no fisheye, no squeeze, no lift, no spring */}
-          <div className="w-full flex items-end justify-between gap-1">
+        {/* VDL Banner-style bottom bar (match TopStatusBar) */}
+        <nav className="ww-surface ww-surface--soft rounded-[22px] px-2 py-2">
+          <div className="w-full flex items-stretch justify-between gap-2">
             {items.map((item) => {
               const isActive = item.id === activeId;
-              const isPressed = pressedId === item.id;
-              const spriteSrc =
-                item.id === 'arena' && isPressed && item.sprites.pressed
-                  ? item.sprites.pressed
-                  : isActive
-                    ? item.sprites.active
-                    : item.sprites.normal;
-
-              // Make these three slightly bigger as requested
-              const bigIcon = item.id === 'scholar' || item.id === 'leaderboard' || item.id === 'profile';
-              const iconSize = bigIcon ? 78 : 72;
+              const activeStyle = isActive
+                ? 'bg-[rgba(252,203,89,0.95)] border-[color:var(--ww-stroke)]'
+                : 'bg-[rgba(255,255,255,0.20)] border-[color:var(--ww-stroke-soft)]';
 
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className="relative flex-1 flex flex-col items-center justify-center outline-none"
-                  style={{ minWidth: 0 }}
+                  className={`flex-1 min-w-0 rounded-2xl border-2 px-3 py-2 flex flex-col items-center justify-center gap-1 transition-all active:translate-y-[1px] ${activeStyle}`}
                   onClick={() => {
                     if (item.disabled) return;
                     onSelect(item.id);
                   }}
-                  onPointerDown={() => item.id === 'arena' && setPressedId('arena')}
-                  onPointerUp={() => item.id === 'arena' && setPressedId(null)}
-                  onPointerCancel={() => item.id === 'arena' && setPressedId(null)}
-                  onPointerLeave={() => item.id === 'arena' && setPressedId(null)}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <div className="relative w-[82px] h-[78px] flex items-center justify-center">
-                    {spriteSrc && (
-                      <div
-                        className="relative"
-                        style={{
-                          filter: isActive ? 'drop-shadow(0 0 16px rgba(64, 160, 255, 0.55))' : undefined,
-                        }}
-                      >
-                        <SpriteIcon src={spriteSrc} alt={item.label} size={iconSize} />
-                      </div>
-                    )}
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ color: isActive ? 'var(--ww-stroke)' : 'rgba(26,15,40,0.75)' }}
+                  >
+                    {item.icon}
                   </div>
-
-                  <div className="mt-0 leading-none">
-                    <span
-                      className={`${isActive ? 'opacity-100' : 'opacity-80'} text-[10px]`}
-                      style={{ display: 'inline-block' }}
-                    >
-                      <TextStroke>{item.label}</TextStroke>
-                    </span>
+                  <div
+                    className={`text-[10px] font-black uppercase tracking-widest truncate ${
+                      isActive ? 'text-black' : 'text-[rgba(26,15,40,0.75)]'
+                    }`}
+                  >
+                    {item.label}
                   </div>
                 </button>
               );
             })}
           </div>
-        </div>
+        </nav>
       </div>
     </div>
   );
