@@ -354,10 +354,10 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
       case 'scholar': return renderScholarPath();
       case 'leaderboard': return <div className="pb-32"><Leaderboard /></div>;
       case 'profile': return renderProfile();
-      case 'reading': return <div className="pb-32"><ReadingTraining onSuccess={(exp) => handleGainExp(exp, 'hp')} /></div>;
-      case 'writing': return <div className="pb-32"><WritingTraining onSuccess={(exp) => handleGainExp(exp, 'atk')} /></div>;
-      case 'listening': return <div className="pb-32"><ListeningTraining onSuccess={(exp) => handleGainExp(exp, 'def')} /></div>;
-      case 'oral': return <div className="pb-32"><OralTraining playerStats={stats} onSuccess={(exp) => handleGainExp(exp)} /></div>;
+      case 'reading': return <div className="h-full"><ReadingTraining onSuccess={(exp) => handleGainExp(exp, 'hp')} /></div>;
+      case 'writing': return <div className="h-full"><WritingTraining onSuccess={(exp) => handleGainExp(exp, 'atk')} /></div>;
+      case 'listening': return <div className="h-full"><ListeningTraining onSuccess={(exp) => handleGainExp(exp, 'def')} /></div>;
+      case 'oral': return <div className="h-full"><OralTraining playerStats={stats} onSuccess={(exp) => handleGainExp(exp)} /></div>;
       case 'pvp_blitz':
       case 'pvp_tactics':
         return <div className="h-full"><BattleArena mode={activeTab} playerStats={stats} onVictory={() => setActiveTab('vocab')} onDefeat={() => setActiveTab('vocab')} /></div>;
@@ -500,7 +500,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
         )}
       </AnimatePresence>
 
-      {!['pvp_blitz', 'pvp_tactics'].includes(activeTab) && !showShop && (
+      {!['pvp_blitz', 'pvp_tactics', 'reading', 'writing', 'listening', 'oral'].includes(activeTab) && !showShop && (
         <GameBottomNav
           activeId={navActiveId}
           onSelect={(id) => {
