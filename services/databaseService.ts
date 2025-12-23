@@ -233,6 +233,30 @@ export const getLeaderboard = async (limit: number = 100) => {
 };
 
 /**
+ * Get word leaderboard sorted by mastered words count
+ */
+export const getWordLeaderboard = async (limit: number = 100) => {
+    const { data, error } = await supabase
+        .from('user_stats')
+        .select(`
+      *,
+      profiles:user_id (
+        username,
+        email
+      )
+    `)
+        .order('mastered_words_count', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching word leaderboard:', error);
+        return [];
+    }
+
+    return data;
+};
+
+/**
  * Update rank points for a user
  */
 export const updateRankPoints = async (userId: string = TEST_USER_ID, points: number) => {
