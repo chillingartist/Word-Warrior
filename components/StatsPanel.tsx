@@ -28,7 +28,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, username, onShopClick, o
     <div className="flex items-center justify-between gap-3 py-3 px-4 rounded-2xl bg-[rgba(255,255,255,0.35)] border-2 border-[color:var(--ww-stroke-soft)]">
       <div className="flex items-center gap-2 min-w-0">
         <Icon size={14} className={colorClassName ?? 'text-[color:var(--ww-stroke)]'} />
-        <span className="text-[10px] font-black uppercase tracking-widest ww-muted truncate">{label}</span>
+        <span className="text-[13px] font-black uppercase tracking-widest ww-muted truncate">{label}</span>
       </div>
       <div className="text-sm font-black ww-ink tabular-nums">{value}</div>
     </div>
