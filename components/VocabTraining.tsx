@@ -27,17 +27,20 @@ interface LearningCardProps {
   index: number;
   total: number;
   onNext: () => void;
+  onPrev: () => void;
 }
 
-const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext }) => {
+const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext, onPrev }) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
   const [isRevealed, setIsRevealed] = useState(false);
 
   const handleDragEnd = (_: any, info: any) => {
-    if (Math.abs(info.offset.x) > 100) {
-      onNext();
+    if (info.offset.x < -100) {
+      onNext();     // 向左滑动 → 下一个
+    } else if (info.offset.x > 100) {
+      onPrev();     // 向右滑动 → 上一个
     }
   };
 
@@ -103,7 +106,7 @@ const LearningCard: React.FC<LearningCardProps> = ({ word, index, total, onNext 
 
       {/* Footer: Hint */}
       <div className="text-[10px] uppercase tracking-widest font-black ww-muted">
-        左右滑动继续
+        ← 下一个 | → 上一个
       </div>
     </motion.div>
   );
@@ -187,7 +190,9 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, questionIndex, 
               className={btnClass}
               style={btnStyle}
             >
-              <span className="line-clamp-1 ww-ink">{option.translation?.split('\n')[0]}</span>
+              <span className="line-clamp-2 ww-ink whitespace-pre-line">
+                {option.translation?.split(/\\n|\n/).map(t => t.trim()).filter(t => t).join('\n')}
+              </span>
               {showCorrectProcess && isCorrectOption && <CheckCircle2 size={18} />}
             </button>
           );
@@ -301,6 +306,12 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
     }
   };
 
+  const handleLearningPrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+    }
+  };
+
   const handleQuizAnswer = async (correct: boolean) => {
     const currentWord = quizQuestions[currentIndex].word;
 
@@ -348,6 +359,7 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
               index={currentIndex}
               total={batch.length}
               onNext={handleLearningNext}
+              onPrev={handleLearningPrev}
             />
           </AnimatePresence>
         </div>
