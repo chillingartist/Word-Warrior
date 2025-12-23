@@ -11,7 +11,7 @@ import { soundService } from '../services/soundService';
 import BattleScene from './Warrior/BattleScene';
 import { supabase } from '../services/supabaseClient';
 import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, checkWordBlitzMatchStatus, abandonWordBlitzMatch, PvPRoom } from '../services/pvpService';
-import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer, checkGrammarMatchStatus } from '../services/grammarPvpService';
+import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer, checkGrammarMatchStatus, abandonGrammarMatch } from '../services/grammarPvpService';
 
 interface BattleArenaProps {
   mode: string;
@@ -76,6 +76,25 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const currentSessionRef = useRef<any>(null);
 
+  // State Refs for Cleanup (Avoid Stale Closures in useEffect)
+  const cleanupRef = useRef({
+    roomId,
+    pvpState,
+    mode,
+    userId,
+    matchmakingChannel: null as any,
+    pollingInterval: null as NodeJS.Timeout | null
+  });
+
+  // Sync cleanup ref
+  useEffect(() => {
+    cleanupRef.current.roomId = roomId;
+    cleanupRef.current.pvpState = pvpState;
+    cleanupRef.current.mode = mode;
+    cleanupRef.current.userId = userId;
+    // Note: channels and intervals are updated directly in refs where they are created
+  }, [roomId, pvpState, mode, userId]);
+
   // Initial Setup & Cleanup
   useEffect(() => {
     if (mode === 'pvp_blitz' || mode === 'pvp_tactics') {
@@ -95,24 +114,49 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         });
       }
     }
-    return () => {
-      if (matchmakingChannelRef.current) {
-        supabase.removeChannel(matchmakingChannelRef.current);
-        matchmakingChannelRef.current = null;
+
+    const handleCleanup = () => {
+      const { roomId, pvpState, mode, userId, matchmakingChannel, pollingInterval } = cleanupRef.current;
+
+      console.log('🧹 Cleanup Triggered:', { roomId, pvpState, mode });
+
+      if (matchmakingChannel) {
+        supabase.removeChannel(matchmakingChannel);
       }
-      if (roomId && userId) {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      if (userId) {
         if (pvpState === 'searching') {
+          console.log('🚫 Cancelling Matchmaking...');
           if (mode === 'pvp_blitz') cancelWordBlitzMatchmaking(userId);
           if (mode === 'pvp_tactics') cancelGrammarMatchmaking(userId);
-          // Clear polling interval if unmounting while searching
-          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        } else if (pvpState === 'playing' || pvpState === 'matched') {
-          // If unmounting while playing, treat as abandon?
-          // Optional: abandonWordBlitzMatch(roomId, userId);
+        } else if ((pvpState === 'playing' || pvpState === 'matched') && roomId) {
+          // Skip abandon for local AI
+          if (!roomId.startsWith('local_ai_')) {
+            console.log('🏳️ Abandoning Match:', roomId);
+            if (mode === 'pvp_blitz') abandonWordBlitzMatch(roomId, userId);
+            if (mode === 'pvp_tactics') abandonGrammarMatch(roomId, userId);
+          }
         }
       }
     };
+
+    // Handle Browser Close / Refresh
+    window.addEventListener('beforeunload', handleCleanup);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleCleanup);
+      handleCleanup();
+    };
   }, [mode]);
+
+  // Capture refs for manual access in sub-functions if needed
+  useEffect(() => {
+    cleanupRef.current.matchmakingChannel = matchmakingChannelRef.current;
+    cleanupRef.current.pollingInterval = pollingIntervalRef.current;
+  }); // Run on every render to ensure refs are fresh if they were mutated directly
 
   // ============================================
   // PVP LOGIC (BLITZ MODE)
