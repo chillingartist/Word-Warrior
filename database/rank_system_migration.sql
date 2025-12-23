@@ -40,6 +40,7 @@ DECLARE
     v_p1_base INTEGER;
     v_p1_hp_bonus INTEGER := 0;
     v_p1_streak_bonus INTEGER := 0;
+    v_p1_protection INTEGER := 0; -- NEW: Value saved by protection
     v_p1_final_hp INTEGER; -- Will need to fetch from room
     
     -- P2 specifics
@@ -47,6 +48,7 @@ DECLARE
     v_p2_base INTEGER;
     v_p2_hp_bonus INTEGER := 0;
     v_p2_streak_bonus INTEGER := 0;
+    v_p2_protection INTEGER := 0; -- NEW
     v_p2_final_hp INTEGER;
     
     -- Constants / Config
@@ -106,30 +108,41 @@ BEGIN
     
     -- 1. Base Score (Win/Loss)
     IF v_p1_is_winner THEN
+        -- Standard Win Logic
         IF v_p2_stats.rank_points > v_p1_stats.rank_points + 200 THEN v_p1_base := 35;
         ELSIF v_p2_stats.rank_points < v_p1_stats.rank_points - 200 THEN v_p1_base := 25;
         ELSE v_p1_base := 30; END IF;
 
+        -- Tiered Base
         IF v_p1_stats.rank_points <= 1000 THEN v_p1_base := 40;
         ELSIF v_p1_stats.rank_points <= 2000 THEN v_p1_base := 40;
         ELSIF v_p1_stats.rank_points <= 3000 THEN v_p1_base := 30;
         ELSIF v_p1_stats.rank_points <= 4000 THEN v_p1_base := 25;
         ELSE v_p1_base := 20; END IF;
         
-        -- Override based on diff
-        IF v_p2_stats.rank_points > v_p1_stats.rank_points + 100 THEN v_p1_base := v_p1_base + 5;
-        ELSIF v_p2_stats.rank_points < v_p1_stats.rank_points - 100 THEN v_p1_base := GREATEST(5, v_p1_base - 5);
+        -- Override based on MAJOR diff (Anti-Farming / Stricter High Rank Logic)
+        IF v_p1_stats.rank_points > v_p2_stats.rank_points + 2000 THEN 
+             v_p1_base := 1; -- Reduced from whatever to 1
+        ELSIF v_p1_stats.rank_points > v_p2_stats.rank_points + 1000 THEN
+             v_p1_base := GREATEST(5, v_p1_base - 15);
+        ELSIF v_p1_stats.rank_points > v_p2_stats.rank_points + 500 THEN
+             v_p1_base := GREATEST(10, v_p1_base - 5);
         END IF;
-    ELSE
-        IF v_p1_stats.rank_points <= 1000 THEN v_p1_base := 0;
-        ELSIF v_p1_stats.rank_points <= 2000 THEN v_p1_base := -10;
-        ELSIF v_p1_stats.rank_points <= 3000 THEN v_p1_base := -20;
-        ELSIF v_p1_stats.rank_points <= 4000 THEN v_p1_base := -25;
-        ELSE v_p1_base := -30; END IF;
 
+    ELSE
+        -- LOSS LOGIC
+        IF v_p1_stats.rank_points <= 1000 THEN v_p1_base := 0; -- Bronze protection
+        ELSIF v_p1_stats.rank_points <= 2000 THEN v_p1_base := -10;
+        ELSIF v_p1_stats.rank_points <= 3000 THEN v_p1_base := -25; -- Increased penalty
+        ELSIF v_p1_stats.rank_points <= 4000 THEN v_p1_base := -30;
+        ELSE v_p1_base := -35; END IF;
+
+        -- Diff Adjustments on Loss
         IF v_p1_base < 0 THEN
-            IF v_p2_stats.rank_points > v_p1_stats.rank_points + 100 THEN v_p1_base := v_p1_base + 5;
-            ELSIF v_p2_stats.rank_points < v_p1_stats.rank_points - 100 THEN v_p1_base := v_p1_base - 5;
+             -- If I lost to someone much stronger, forgive some points?
+             -- If I lost to someone much weaker, punish more?
+            IF v_p2_stats.rank_points > v_p1_stats.rank_points + 500 THEN v_p1_base := v_p1_base + 5; -- Lost to strong player
+            ELSIF v_p2_stats.rank_points < v_p1_stats.rank_points - 500 THEN v_p1_base := v_p1_base - 5; -- Lost to weak player
             END IF;
         END IF;
     END IF;
@@ -142,22 +155,56 @@ BEGIN
         ELSIF v_p1_final_hp < 20 THEN v_p1_hp_bonus := 2;
         END IF;
         
-        IF v_p1_stats.rank_points > 3000 AND v_p1_stats.rank_points <= 4000 THEN
+        -- Diminishing returns on HP bonus for high rank gaps
+        IF v_p1_stats.rank_points > v_p2_stats.rank_points + 1000 THEN
+            v_p1_hp_bonus := 2; -- Cap HP bonus for stomps
+        END IF;
+        
+        IF v_p1_stats.rank_points > 3000 THEN
             v_p1_hp_bonus := v_p1_hp_bonus / 2;
         END IF;
     ELSE
-        IF v_room.player2_hp < 10 THEN v_p1_hp_bonus := 5; END IF;
-        IF v_is_instant_kill THEN v_p1_change := v_p1_change / 2; END IF; -- Apply to base+? No, reduce penalty
-        IF v_p1_stats.total_battles < 10 THEN v_p1_change := v_p1_change / 2; END IF;
+        -- LOSS PROTECTIONS (Now Restricted)
+        -- Only apply if Rank < 2000
+        IF v_p1_stats.rank_points < 2000 THEN
+            IF v_room.player2_hp < 10 THEN 
+                v_p1_protection := v_p1_protection + 5; -- Close match protection
+            END IF;
+            
+            IF v_is_instant_kill THEN 
+                -- Example: Base is -20. Change becomes -10. Protection val is 10.
+                v_p1_protection := v_p1_protection + ABS(v_p1_change / 2); 
+            END IF; 
+            
+            IF v_p1_stats.total_battles < 10 THEN 
+                v_p1_protection := v_p1_protection + ABS(v_p1_change / 2);
+            END IF;
+        END IF;
     END IF;
+    
+    -- Apply Protection to Change (Loss is negative, Protection is positive addition)
+    -- e.g. Change -30, Protection 15 -> New Change -15
+    -- Ensure we don't go positive on a loss due to protection overlapping (though current logic keeps it safe)
+    IF NOT v_p1_is_winner THEN
+         -- Helper: Cap protection so it doesn't exceed the loss (making it a win)
+         v_p1_protection := LEAST(v_p1_protection, ABS(v_p1_change));
+         v_p1_change := v_p1_change + v_p1_protection;
+    END IF;
+
     v_p1_change := v_p1_change + v_p1_hp_bonus;
 
     -- 3. Streak / Special Bonuses
     IF v_p1_is_winner THEN
         IF v_p1_stats.win_streak >= 2 THEN v_p1_streak_bonus := 10; END IF;
+        
+        -- Cap streaks for farming
+        IF v_p1_stats.rank_points > v_p2_stats.rank_points + 1000 THEN
+             v_p1_streak_bonus := 0; 
+        END IF;
+
         v_p1_change := v_p1_change + v_p1_streak_bonus;
         
-        -- Daily Win (Multiplier)
+        -- Daily Win (Multiplier) - Keep for engagement? Maybe reduce for high rank?
         IF v_p1_stats.last_daily_win IS NULL OR v_p1_stats.last_daily_win < CURRENT_DATE THEN
              v_p1_change := v_p1_change * 2;
         END IF;
@@ -172,7 +219,7 @@ BEGIN
     
     -- Base
     IF v_p2_is_winner THEN
-        IF v_p1_stats.rank_points > v_p2_stats.rank_points + 200 THEN v_p2_base := 35;
+         IF v_p1_stats.rank_points > v_p2_stats.rank_points + 200 THEN v_p2_base := 35;
         ELSIF v_p1_stats.rank_points < v_p2_stats.rank_points - 200 THEN v_p2_base := 25;
         ELSE v_p2_base := 30; END IF;
 
@@ -182,19 +229,24 @@ BEGIN
         ELSIF v_p2_stats.rank_points <= 4000 THEN v_p2_base := 25;
         ELSE v_p2_base := 20; END IF;
 
-        IF v_p1_stats.rank_points > v_p2_stats.rank_points + 100 THEN v_p2_base := v_p2_base + 5;
-        ELSIF v_p1_stats.rank_points < v_p2_stats.rank_points - 100 THEN v_p2_base := GREATEST(5, v_p2_base - 5);
+        -- Override based on MAJOR diff
+        IF v_p2_stats.rank_points > v_p1_stats.rank_points + 2000 THEN 
+             v_p2_base := 1; 
+        ELSIF v_p2_stats.rank_points > v_p1_stats.rank_points + 1000 THEN
+             v_p2_base := GREATEST(5, v_p2_base - 15);
+        ELSIF v_p2_stats.rank_points > v_p1_stats.rank_points + 500 THEN
+             v_p2_base := GREATEST(10, v_p2_base - 5);
         END IF;
     ELSE
         IF v_p2_stats.rank_points <= 1000 THEN v_p2_base := 0;
         ELSIF v_p2_stats.rank_points <= 2000 THEN v_p2_base := -10;
-        ELSIF v_p2_stats.rank_points <= 3000 THEN v_p2_base := -20;
-        ELSIF v_p2_stats.rank_points <= 4000 THEN v_p2_base := -25;
-        ELSE v_p2_base := -30; END IF;
+        ELSIF v_p2_stats.rank_points <= 3000 THEN v_p2_base := -25;
+        ELSIF v_p2_stats.rank_points <= 4000 THEN v_p2_base := -30;
+        ELSE v_p2_base := -35; END IF;
 
         IF v_p2_base < 0 THEN
-            IF v_p1_stats.rank_points > v_p2_stats.rank_points + 100 THEN v_p2_base := v_p2_base + 5;
-            ELSIF v_p1_stats.rank_points < v_p2_stats.rank_points - 100 THEN v_p2_base := v_p2_base - 5;
+            IF v_p1_stats.rank_points > v_p2_stats.rank_points + 500 THEN v_p2_base := v_p2_base + 5;
+            ELSIF v_p1_stats.rank_points < v_p2_stats.rank_points - 500 THEN v_p2_base := v_p2_base - 5;
             END IF;
         END IF;
     END IF;
@@ -206,18 +258,38 @@ BEGIN
         ELSIF v_p2_final_hp >= 50 THEN v_p2_hp_bonus := 8;
         ELSIF v_p2_final_hp < 20 THEN v_p2_hp_bonus := 2;
         END IF;
-        IF v_p2_stats.rank_points > 3000 AND v_p2_stats.rank_points <= 4000 THEN v_p2_hp_bonus := v_p2_hp_bonus / 2; END IF;
+        
+        IF v_p2_stats.rank_points > v_p1_stats.rank_points + 1000 THEN
+            v_p2_hp_bonus := 2; 
+        END IF;
+
+        IF v_p2_stats.rank_points > 3000 THEN v_p2_hp_bonus := v_p2_hp_bonus / 2; END IF;
     ELSE
-        IF v_room.player1_hp < 10 THEN v_p2_hp_bonus := 5; END IF;
-        IF v_is_instant_kill THEN v_p2_change := v_p2_change / 2; END IF;
-        IF v_p2_stats.total_battles < 10 THEN v_p2_change := v_p2_change / 2; END IF;
+         -- LOSS PROTECTIONS
+        IF v_p2_stats.rank_points < 2000 THEN
+            IF v_room.player1_hp < 10 THEN v_p2_protection := v_p2_protection + 5; END IF;
+            IF v_is_instant_kill THEN v_p2_protection := v_p2_protection + ABS(v_p2_change / 2); END IF;
+            IF v_p2_stats.total_battles < 10 THEN v_p2_protection := v_p2_protection + ABS(v_p2_change / 2); END IF;
+        END IF;
     END IF;
+    
+    IF NOT v_p2_is_winner THEN
+         v_p2_protection := LEAST(v_p2_protection, ABS(v_p2_change));
+         v_p2_change := v_p2_change + v_p2_protection;
+    END IF;
+
     v_p2_change := v_p2_change + v_p2_hp_bonus;
 
     -- Streak/Daily P2
     IF v_p2_is_winner THEN
         IF v_p2_stats.win_streak >= 2 THEN v_p2_streak_bonus := 10; END IF;
+        
+        IF v_p2_stats.rank_points > v_p1_stats.rank_points + 1000 THEN
+             v_p2_streak_bonus := 0; 
+        END IF;
+
         v_p2_change := v_p2_change + v_p2_streak_bonus;
+        
         IF v_p2_stats.last_daily_win IS NULL OR v_p2_stats.last_daily_win < CURRENT_DATE THEN v_p2_change := v_p2_change * 2; END IF;
     END IF;
 
@@ -230,12 +302,14 @@ BEGIN
         'player1', jsonb_build_object(
             'base', v_p1_base,
             'hp_bonus', v_p1_hp_bonus,
-            'streak_bonus', v_p1_streak_bonus
+            'streak_bonus', v_p1_streak_bonus,
+            'protection', v_p1_protection
         ),
         'player2', jsonb_build_object(
             'base', v_p2_base,
             'hp_bonus', v_p2_hp_bonus,
-            'streak_bonus', v_p2_streak_bonus
+            'streak_bonus', v_p2_streak_bonus,
+            'protection', v_p2_protection
         )
     );
 

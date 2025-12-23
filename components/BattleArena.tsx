@@ -1145,12 +1145,19 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                       <span className="text-green-400">+{matchDetails.streak_bonus}</span>
                     </div>
                   )}
+                  {/* Protection (New) */}
+                  {matchDetails.protection && matchDetails.protection > 0 && (
+                    <div className="flex justify-between text-slate-400 font-bold">
+                      <span>{status === 'YOU WIN!' ? '段位保护：' : '败方保护：'}</span>
+                      <span className="text-blue-400">+{matchDetails.protection}</span>
+                    </div>
+                  )}
                   <div className="h-px bg-slate-600 my-2" />
                   <div className="flex justify-between text-white font-black text-xl">
                     <span>总计：</span>
-                    <span className={(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus) >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus) > 0 ? '+' : ''}
-                      {matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus}
+                    <span className={(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus + (matchDetails.protection || 0)) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {(matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus + (matchDetails.protection || 0)) > 0 ? '+' : ''}
+                      {matchDetails.base + matchDetails.hp_bonus + matchDetails.streak_bonus + (matchDetails.protection || 0)}
                     </span>
                   </div>
                 </div>

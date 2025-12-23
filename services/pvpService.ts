@@ -1,6 +1,13 @@
 import { supabase } from './supabaseClient';
 import { DatabaseUserProfile } from '../types';
 
+export interface MatchDetails {
+    base: number;
+    hp_bonus: number;
+    streak_bonus: number;
+    protection?: number;
+}
+
 export interface PvPRoom {
     id: string;
     player1_id: string;
@@ -21,7 +28,10 @@ export interface PvPRoom {
     player2_start_points?: number;
     player1_start_tier?: string;
     player2_start_tier?: string;
-    match_details?: any; // JSONB { player1: {...}, player2: {...} }
+    match_details?: {
+        player1: MatchDetails;
+        player2: MatchDetails;
+    };
 }
 
 export type JoinStatus = 'matched' | 'waiting' | 'error';
