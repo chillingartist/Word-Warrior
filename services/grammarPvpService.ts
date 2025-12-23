@@ -118,3 +118,23 @@ export const abandonGrammarMatch = async (roomId: string, userId: string) => {
     }
 };
 
+/**
+ * Claim Grammar Victory (Opponent Disconnected)
+ */
+export const claimGrammarVictory = async (roomId: string, userId: string) => {
+    try {
+        const { error } = await supabase
+            .from('pvp_grammar_rooms')
+            .update({
+                status: 'finished',
+                winner_id: userId
+            })
+            .eq('id', roomId)
+            .eq('status', 'active');
+
+        if (error) console.error('Error claiming grammar victory:', error);
+    } catch (err) {
+        console.error('Error in claimGrammarVictory:', err);
+    }
+};
+

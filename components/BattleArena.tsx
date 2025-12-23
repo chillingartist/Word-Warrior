@@ -10,8 +10,8 @@ import { useWarrior } from '../contexts/WarriorContext';
 import { soundService } from '../services/soundService';
 import BattleScene from './Warrior/BattleScene';
 import { supabase } from '../services/supabaseClient';
-import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, checkWordBlitzMatchStatus, abandonWordBlitzMatch, PvPRoom } from '../services/pvpService';
-import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer, checkGrammarMatchStatus } from '../services/grammarPvpService';
+import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, checkWordBlitzMatchStatus, abandonWordBlitzMatch, claimWordBlitzVictory, PvPRoom } from '../services/pvpService';
+import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer, checkGrammarMatchStatus, abandonGrammarMatch, claimGrammarVictory } from '../services/grammarPvpService';
 
 interface BattleArenaProps {
   mode: string;
@@ -58,7 +58,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     playerHp: playerStats.hp,
     enemyHp: 100,
     currentQIndex: 0,
-    hasAnswered: false
+    hasAnswered: false,
+    opponentId: null as string | null // Added opponentId
   });
 
   // Sync refs with state
@@ -67,7 +68,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     stateRef.current.enemyHp = enemyHp;
     stateRef.current.currentQIndex = currentQIndex;
     stateRef.current.hasAnswered = hasAnsweredCurrent;
-  }, [playerHp, enemyHp, currentQIndex, hasAnsweredCurrent]);
+    stateRef.current.opponentId = opponentId;
+  }, [playerHp, enemyHp, currentQIndex, hasAnsweredCurrent, opponentId]);
 
   // Other Modes State
   const [currentGrammarQ, setCurrentGrammarQ] = useState(MOCK_GRAMMAR_QUESTIONS[0]);
@@ -75,6 +77,25 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   const audioContextRef = useRef<AudioContext | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const currentSessionRef = useRef<any>(null);
+
+  // State Refs for Cleanup (Avoid Stale Closures in useEffect)
+  const cleanupRef = useRef({
+    roomId,
+    pvpState,
+    mode,
+    userId,
+    matchmakingChannel: null as any,
+    pollingInterval: null as NodeJS.Timeout | null
+  });
+
+  // Sync cleanup ref
+  useEffect(() => {
+    cleanupRef.current.roomId = roomId;
+    cleanupRef.current.pvpState = pvpState;
+    cleanupRef.current.mode = mode;
+    cleanupRef.current.userId = userId;
+    // Note: channels and intervals are updated directly in refs where they are created
+  }, [roomId, pvpState, mode, userId]);
 
   // Initial Setup & Cleanup
   useEffect(() => {
@@ -95,24 +116,49 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         });
       }
     }
-    return () => {
-      if (matchmakingChannelRef.current) {
-        supabase.removeChannel(matchmakingChannelRef.current);
-        matchmakingChannelRef.current = null;
+
+    const handleCleanup = () => {
+      const { roomId, pvpState, mode, userId, matchmakingChannel, pollingInterval } = cleanupRef.current;
+
+      console.log('🧹 Cleanup Triggered:', { roomId, pvpState, mode });
+
+      if (matchmakingChannel) {
+        supabase.removeChannel(matchmakingChannel);
       }
-      if (roomId && userId) {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      if (userId) {
         if (pvpState === 'searching') {
+          console.log('🚫 Cancelling Matchmaking...');
           if (mode === 'pvp_blitz') cancelWordBlitzMatchmaking(userId);
           if (mode === 'pvp_tactics') cancelGrammarMatchmaking(userId);
-          // Clear polling interval if unmounting while searching
-          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        } else if (pvpState === 'playing' || pvpState === 'matched') {
-          // If unmounting while playing, treat as abandon?
-          // Optional: abandonWordBlitzMatch(roomId, userId);
+        } else if ((pvpState === 'playing' || pvpState === 'matched') && roomId) {
+          // Skip abandon for local AI
+          if (!roomId.startsWith('local_ai_')) {
+            console.log('🏳️ Abandoning Match:', roomId);
+            if (mode === 'pvp_blitz') abandonWordBlitzMatch(roomId, userId);
+            if (mode === 'pvp_tactics') abandonGrammarMatch(roomId, userId);
+          }
         }
       }
     };
+
+    // Handle Browser Close / Refresh
+    window.addEventListener('beforeunload', handleCleanup);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleCleanup);
+      handleCleanup();
+    };
   }, [mode]);
+
+  // Capture refs for manual access in sub-functions if needed
+  useEffect(() => {
+    cleanupRef.current.matchmakingChannel = matchmakingChannelRef.current;
+    cleanupRef.current.pollingInterval = pollingIntervalRef.current;
+  }); // Run on every render to ensure refs are fresh if they were mutated directly
 
   // ============================================
   // PVP LOGIC (BLITZ MODE)
@@ -468,7 +514,14 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     const subscribeToGame = () => {
       console.log(`🔌 Connecting to Game Room: ${roomId}`);
       const table = mode === 'pvp_tactics' ? 'pvp_grammar_rooms' : 'pvp_word_blitz_rooms';
-      const channel = supabase.channel('game_' + roomId)
+
+      const channel = supabase.channel('game_' + roomId, {
+        config: {
+          presence: {
+            key: userId,
+          },
+        },
+      })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: table, filter: `id=eq.${roomId}` },
           (payload) => {
@@ -476,11 +529,48 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
             handleRoomUpdate(payload.new as PvPRoom);
           }
         )
-        .subscribe((status, err) => {
+        .on('presence', { event: 'sync' }, () => {
+          const newState = channel.presenceState();
+          console.log('👥 Presence State Synced:', newState);
+          // Verify if opponent is here? Not strictly needed, we care about 'leave'
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          console.log('👤 Player Joined:', key, newPresences);
+        })
+        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+          console.log('👋 Player Left:', key, leftPresences);
+          const currentOpponentId = stateRef.current.opponentId;
+          const currentPvpState = cleanupRef.current.pvpState; // Use cleanupRef for pvpState to stay consistent or stateRef? stateRef doesn't have pvpState. Let's use cleanRef or just trust pvpState?
+          // Actually pvpState in closure might be fine if re-render happens, but subscribeToGame is not re-run often. 
+          // Let's use cleanupRef for reliably fresh state variables not in stateRef.
+
+          console.log(`🔍 Checking Leave: Key=${key}, Expected=${currentOpponentId}`);
+
+          // If the opponent left, we claim victory!
+          if (key === currentOpponentId) {
+            // We don't check pvpState strictly to 'playing' just in case it's 'matched' transitioning to 'playing'
+            // But we should ensure we are not 'end' or 'idle'
+            // Let's check if we have a room.
+            console.log('🏆 Opponent disconnected! Claiming victory...');
+
+            if (mode === 'pvp_tactics') {
+              claimGrammarVictory(roomId, userId);
+            } else {
+              claimWordBlitzVictory(roomId, userId);
+            }
+            setStatus('OPPONENT LEFT! YOU WIN!');
+          }
+        })
+        .subscribe(async (status, err) => {
           console.log(`Game Room Subscription Status (${roomId}):`, status, err);
 
           if (status === 'SUBSCRIBED') {
             setIsGameConnected(true);
+            // Track my presence
+            await channel.track({
+              joined_at: new Date().toISOString(),
+              user_id: userId
+            });
           } else {
             setIsGameConnected(false);
           }

@@ -167,6 +167,27 @@ export const abandonWordBlitzMatch = async (roomId: string, userId: string) => {
     }
 };
 
+/**
+ * Claim Victory (Opponent Disconnected)
+ * Called by the remaining player when they detect the opponent has left via Presence.
+ */
+export const claimWordBlitzVictory = async (roomId: string, userId: string) => {
+    try {
+        const { error } = await supabase
+            .from('pvp_word_blitz_rooms')
+            .update({
+                status: 'finished',
+                winner_id: userId
+            })
+            .eq('id', roomId)
+            .eq('status', 'active'); // Only claim if still active
+
+        if (error) console.error('Error claiming victory:', error);
+    } catch (err) {
+        console.error('Error in claimVictory:', err);
+    }
+};
+
 export interface MatchHistoryItem {
     id: string;
     mode: 'blitz' | 'grammar';
