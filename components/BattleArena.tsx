@@ -609,7 +609,15 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         const oppId = myRole === 'player1' ? data.player2_id : data.player1_id;
         setOpponentId(oppId);
         const profile = await getOpponentProfile(oppId);
-        if (profile) setOpponentName(profile.username);
+        if (profile) {
+          setOpponentName(profile.username);
+          if (profile.avatarColor) {
+            setEnemyAppearance(prev => ({
+              ...prev,
+              modelColor: profile.avatarColor || 'blue'
+            }));
+          }
+        }
       }
     };
     fetchOpponent();

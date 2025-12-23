@@ -88,17 +88,26 @@ export const submitWordBlitzAnswer = async (
 /**
  * Get opponent profile details
  */
-export const getOpponentProfile = async (opponentId: string): Promise<{ username: string } | null> => {
+export const getOpponentProfile = async (opponentId: string): Promise<{ username: string; avatarColor?: string } | null> => {
     // If it's a test ID or "Wraith", return mocked
-    if (opponentId === '00000000-0000-0000-0000-000000000001') return { username: 'Trainer Bot' };
+    if (opponentId === '00000000-0000-0000-0000-000000000001') return { username: 'Trainer Bot', avatarColor: 'blue' };
 
-    const { data } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', opponentId)
-        .single();
+    try {
+        const [profileRes, settingsRes] = await Promise.all([
+            supabase.from('profiles').select('username').eq('id', opponentId).single(),
+            supabase.from('user_settings').select('avatar_color').eq('user_id', opponentId).single()
+        ]);
 
-    return data;
+        if (!profileRes.data) return null;
+
+        return {
+            username: profileRes.data.username,
+            avatarColor: settingsRes.data?.avatar_color || 'blue'
+        };
+    } catch (e) {
+        console.error("Error fetching opponent profile", e);
+        return null;
+    }
 };
 
 /**

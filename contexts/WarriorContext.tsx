@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { WarriorState, ShopItem } from '../types';
 import { SHOP_ITEMS } from '../constants.tsx';
+import { supabase } from '../services/supabaseClient';
 
 // Default State
 const DEFAULT_STATE: WarriorState = {
@@ -65,6 +66,31 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else {
             setState(DEFAULT_STATE);
         }
+
+        // Fetch authoritative avatar color from DB
+        const syncSettings = async () => {
+            try {
+                const { data } = await supabase
+                    .from('user_settings')
+                    .select('avatar_color')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (data?.avatar_color) {
+                    setState(prev => ({
+                        ...prev,
+                        appearance: {
+                            ...prev.appearance,
+                            modelColor: data.avatar_color
+                        }
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to sync user settings", err);
+            }
+        };
+
+        syncSettings();
         setLoaded(true);
     }, [userId]);
 
@@ -108,6 +134,15 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ...prev,
             appearance: { ...prev.appearance, ...updates }
         }));
+
+        // Sync modelColor to DB
+        if (updates.modelColor && userId) {
+            supabase.from('user_settings')
+                .upsert({ user_id: userId, avatar_color: updates.modelColor }, { onConflict: 'user_id' })
+                .then(({ error }) => {
+                    if (error) console.error("Failed to save avatar color", error);
+                });
+        }
     };
 
     const unlockColor = (colorId: string): boolean => {

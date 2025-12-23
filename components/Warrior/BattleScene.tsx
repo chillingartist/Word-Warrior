@@ -196,10 +196,29 @@ const BattleScene: React.FC<BattleSceneProps> = ({ playerIds, enemyIds, combatEv
     }, []);
 
     // --- RE-RENDER VISUALS WHEN PROPS CHANGE ---
+    // --- RE-RENDER VISUALS WHEN PROPS CHANGE ---
     useEffect(() => {
-        // With spritesheets, we don't redraw composed graphics on ID changes currently.
-        // Future: Swap spritesheets based on armorId/weaponId
-    }, [playerIds]);
+        const scene = sceneRef.current;
+        if (!scene) return;
+
+        const updateChar = (name: string, data: any) => {
+            const container = scene.children.getByName(name) as Phaser.GameObjects.Container;
+            if (!container) return;
+            const sprite = container.getByName('sprite') as Phaser.GameObjects.Sprite;
+            if (!sprite) return;
+
+            const color = (data as any).modelColor || 'blue';
+            // Check if animation exists
+            const animKey = `warrior_anim_${color}`;
+            const finalAnim = scene.anims.exists(animKey) ? animKey : 'warrior_anim_blue';
+
+            // Only play if not already playing (handled by true arg)
+            sprite.play(finalAnim, true);
+        };
+
+        updateChar('player', playerIds);
+        updateChar('enemy', enemyIds);
+    }, [playerIds, enemyIds]);
 
     // --- COMBAT ANIMATIONS ---
     useEffect(() => {
