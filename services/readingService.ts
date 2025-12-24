@@ -73,8 +73,13 @@ export const readingService = {
             }, { onConflict: 'user_id,article_id' });
 
         if (upsertError) {
-            console.error('Error recording reading progress:', upsertError);
-            return { success: false, xpAwarded: 0, goldAwarded: 0, message: 'Failed to save progress.' };
+            console.error('Error recording reading progress details:', {
+                error: upsertError,
+                code: upsertError.code,
+                message: upsertError.message,
+                details: upsertError.details
+            });
+            return { success: false, xpAwarded: 0, goldAwarded: 0, message: `Failed to save progress: ${upsertError.message}` };
         }
 
         // 4. Award Rewards

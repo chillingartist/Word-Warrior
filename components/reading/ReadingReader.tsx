@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ReadingMaterial, ReadingQuestion } from '../../types';
-import { ArrowLeft, CheckCircle, XCircle, Brain, Send, Eye } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Brain, Send, Eye, ArrowRight, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
@@ -8,6 +8,7 @@ interface ReadingReaderProps {
     material: ReadingMaterial;
     onBack: () => void;
     onComplete: (score: number) => void;
+    onNext?: () => void;
 }
 
 // Answer state for each question
@@ -18,7 +19,8 @@ interface QuestionAnswer {
     isCorrect: boolean;
 }
 
-const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onComplete }) => {
+const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onComplete, onNext }) => {
+    const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
     const [answers, setAnswers] = useState<QuestionAnswer[]>(
         material.questions.map(q => ({
             questionId: q.id,
@@ -30,6 +32,15 @@ const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onCompl
     const [showReview, setShowReview] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
 
+    // Auto-scroll to top when material changes
+    useEffect(() => {
+        const scrollContainer = document.querySelector('main');
+        if (scrollContainer) {
+            scrollContainer.scrollTo({ top: 0, behavior: 'instant' });
+        }
+        window.scrollTo({ top: 0 });
+    }, [material.id]);
+
     const answeredCount = answers.filter(a => a.selectedOption !== null).length;
     const allAnswered = answeredCount === material.questions.length;
     const score = answers.filter(a => a.isCorrect).length;
@@ -40,6 +51,16 @@ const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onCompl
         setAnswers(prev => prev.map((a, i) =>
             i === questionIndex ? { ...a, selectedOption: option } : a
         ));
+
+        // Auto-scroll to next question
+        if (questionIndex < material.questions.length - 1) {
+            setTimeout(() => {
+                questionRefs.current[questionIndex + 1]?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 300); // Small delay for better feel
+        }
     };
 
     const handleSubmitAll = () => {
@@ -70,10 +91,9 @@ const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onCompl
                 colors: ['#FCCB59', '#5B3C8E', '#10b981']
             });
         }
-    };
 
-    const handleFinish = () => {
-        onComplete(score);
+        // Auto-process rewards upon submission
+        onComplete(correctCount);
     };
 
     // Review Mode Component
@@ -205,7 +225,11 @@ const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onCompl
                             {material.questions.map((question, qIndex) => {
                                 const answer = answers[qIndex];
                                 return (
-                                    <div key={question.id} className="ww-surface ww-surface--soft rounded-[18px] p-6 md:p-8">
+                                    <div 
+                                        key={question.id} 
+                                        ref={el => questionRefs.current[qIndex] = el}
+                                        className="ww-surface ww-surface--soft rounded-[18px] p-6 md:p-8 transition-all duration-300"
+                                    >
                                         <h3 className="text-xl font-black ww-ink mb-6 flex gap-3">
                                             <span style={{ color: 'var(--ww-accent)' }}>Q{qIndex + 1}.</span>
                                             {question.question}
@@ -322,17 +346,44 @@ const ReadingReader: React.FC<ReadingReaderProps> = ({ material, onBack, onCompl
                                         {showReview ? '收起回顾' : '查看回顾'}
                                     </button>
                                     <button
-                                        onClick={handleFinish}
-                                        className="ww-btn ww-btn--accent px-8 py-3 rounded-2xl text-[10px]"
+                                        onClick={onBack}
+                                        className="ww-btn ww-btn--accent px-8 py-3 rounded-2xl text-[10px] flex items-center gap-2"
                                     >
-                                        领取 EXP
+                                        <List className="w-4 h-4" />
+                                        返回列表
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
                         {/* Review Section */}
-                        {isSubmitted && showReview && <ReviewSection />}
+                        {isSubmitted && showReview && (
+                            <>
+                                <ReviewSection />
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mt-12 pt-8 border-t ww-divider flex flex-col md:flex-row items-center justify-center gap-4"
+                                >
+                                    <button
+                                        onClick={onBack}
+                                        className="ww-btn ww-btn--ink px-8 py-4 rounded-2xl text-xs flex items-center gap-2 w-full md:w-auto justify-center"
+                                    >
+                                        <List className="w-4 h-4" />
+                                        返回列表
+                                    </button>
+                                    {onNext && (
+                                        <button
+                                            onClick={onNext}
+                                            className="ww-btn ww-btn--accent px-10 py-4 rounded-2xl text-xs flex items-center gap-2 w-full md:w-auto justify-center"
+                                        >
+                                            下一篇
+                                            <ArrowRight className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </motion.div>
+                            </>
+                        )}
                     </div>
                 </div>
             </motion.div>

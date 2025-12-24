@@ -56,6 +56,22 @@ const ReadingTraining: React.FC<ReadingTrainingProps> = ({ onSuccess }) => {
     setMode('list');
   };
 
+  const handleNextMaterial = () => {
+    if (!materials.length || !selectedMaterial) return;
+    const currentIndex = materials.findIndex(m => m.id === selectedMaterial.id);
+    const nextIndex = (currentIndex + 1) % materials.length;
+    setSelectedMaterial(materials[nextIndex]);
+    
+    // Improved scrolling for containers
+    setTimeout(() => {
+      const scrollContainer = document.querySelector('main');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: 0, behavior: 'instant' });
+      }
+      window.scrollTo({ top: 0 });
+    }, 100);
+  };
+
   const handleQuizComplete = async (score: number) => {
     if (!selectedMaterial || !user) return;
 
@@ -74,8 +90,7 @@ const ReadingTraining: React.FC<ReadingTrainingProps> = ({ onSuccess }) => {
         // Note: The notification shows XP. The user might get Gold too but we don't show it in the XP popup as per requirement "same form as writing"
         // and Writing only shows XP in the popup.
 
-        // Return to list after successful completion
-        handleBackToList();
+        // We no longer automatically return to list, letting user review or click the new navigation buttons
       } else {
         alert(result.message);
       }
@@ -142,9 +157,11 @@ const ReadingTraining: React.FC<ReadingTrainingProps> = ({ onSuccess }) => {
 
       {mode === 'read' && selectedMaterial && (
         <ReadingReader
+          key={selectedMaterial.id}
           material={selectedMaterial}
           onBack={handleBackToList}
           onComplete={handleQuizComplete}
+          onNext={handleNextMaterial}
         />
       )}
       <XPNotification
