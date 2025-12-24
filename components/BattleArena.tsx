@@ -13,6 +13,58 @@ import { supabase } from '../services/supabaseClient';
 import { findWordBlitzMatch, cancelWordBlitzMatchmaking, submitWordBlitzAnswer, getOpponentProfile, checkWordBlitzMatchStatus, abandonWordBlitzMatch, claimWordBlitzVictory, PvPRoom } from '../services/pvpService';
 import { findGrammarMatch, cancelGrammarMatchmaking, submitGrammarAnswer, checkGrammarMatchStatus, abandonGrammarMatch, claimGrammarVictory } from '../services/grammarPvpService';
 
+// ============================================
+// DAMAGE CALCULATION HELPER (Power-Speed Model)
+// ============================================
+// Core Formula: Damage = (ATK² / (ATK + DEF × α)) × 2 × Multiplier
+// Time Multiplier: Multiplier = BaseMultiplier - (10 - timeLeft) / 5
+// 
+// Word Blitz (BLITZ): baseMultiplier = 2.2, defEfficiency (α) = 1.0
+// Grammar Siege (SIEGE): baseMultiplier = 1.8, defEfficiency (α) = 1.2
+//
+// Correct Answer: FinalDamage = Damage (deal to enemy)
+// Wrong Answer: SelfDamage = Damage × 0.7 (self-damage, uses own DEF)
+
+interface BattleStats {
+  atk: number;
+  def: number;
+}
+
+type BattleMode = 'BLITZ' | 'SIEGE';
+
+const calculateBattleDamage = (
+  attackerStats: BattleStats,
+  defenderStats: BattleStats,
+  timeLeft: number, // 0-10
+  isCorrect: boolean,
+  mode: BattleMode
+): number => {
+  // Mode-specific parameters
+  const baseTimeFactor = mode === 'BLITZ' ? 2.2 : 1.8;
+  const defEfficiency = mode === 'SIEGE' ? 1.2 : 1.0;
+
+  // Time taken = 10 - timeLeft (0 to 10)
+  const timeTaken = 10 - timeLeft;
+
+  // Time multiplier: max(0, baseTimeFactor - (timeTaken / 5))
+  const timeMultiplier = Math.max(0, baseTimeFactor - (timeTaken / 5));
+
+  let baseDamage: number;
+
+  if (isCorrect) {
+    // Deal damage to enemy: (ATK² / (ATK + DEF × α)) × 2
+    baseDamage = (Math.pow(attackerStats.atk, 2) /
+      (attackerStats.atk + defenderStats.def * defEfficiency)) * 2;
+    return Math.max(1, Math.floor(baseDamage * timeMultiplier * 0.5)); // ×0.5 damage reduction
+  } else {
+    // Self damage (反噬): Use attacker's own DEF to mitigate
+    // (ATK² / (ATK + own_DEF)) × 2 × 0.7
+    baseDamage = (Math.pow(attackerStats.atk, 2) /
+      (attackerStats.atk + attackerStats.def)) * 2;
+    return Math.max(1, Math.floor(baseDamage * timeMultiplier * 0.7 * 0.5)); // ×0.5 damage reduction
+  }
+};
+
 interface BattleArenaProps {
   mode: string;
   playerStats: any;
@@ -32,6 +84,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // Generic State
   const [playerHp, setPlayerHp] = useState(playerStats.hp);
   const [enemyHp, setEnemyHp] = useState(100);
+  const [enemyMaxHp, setEnemyMaxHp] = useState(100); // Track enemy's max HP for HP bar display
   const [combatEvent, setCombatEvent] = useState<{ type: 'attack' | 'hit' | 'block'; target: 'player' | 'enemy'; damage?: number } | null>(null); // For non-PvP modes or initial PvP
   const [status, setStatus] = useState('READY');
   const [isShaking, setIsShaking] = useState<'player' | 'enemy' | null>(null);
@@ -423,7 +476,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     if (type === 'block') {
       // soundService.playBlock(); // If implemented
     } else {
-      soundService.playAttack(type === 'crit' ? 'fire' : 'slash');
+      soundService.playAttack('slash');
     }
 
     // Trigger Visual Event
@@ -436,7 +489,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     setTimeout(() => setCombatEvent(null), 500);
 
     setTimeout(() => setIsShaking(null), 300);
-    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== id)), 1200);
+    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== id)), 2500); // Extended from 1200ms to 2500ms for better visibility
   };
 
   // AI MATCH LOGIC
@@ -466,6 +519,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     setIsGameConnected(true); // Always connected for local AI
     isFinishedRef.current = false; // Reset for AI
 
+    // Set AI Enemy HP (scale with player's max HP)
+    const aiMaxHp = playerStats.maxHp || 100;
+    setEnemyHp(aiMaxHp);
+    setEnemyMaxHp(aiMaxHp);
+
     // RANDOMIZE ENEMY APPEARANCE
     setEnemyAppearance(generateRandomAppearance());
 
@@ -488,22 +546,59 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
     const aiTimer = setTimeout(() => {
       // AI Answer Logic
-      const isCorrect = Math.random() > 0.2; // 80% accuracy
-      const damage = isCorrect ? Math.floor(Math.random() * 5) + 5 : 0; // Random damage 5-10 approx
+      const aiIsCorrect = Math.random() > 0.2; // 80% accuracy
+      const aiTimeLeft = Math.floor(Math.random() * 6) + 2; // AI answers in 2-8 seconds (timeLeft = 2-8)
 
-      if (isCorrect) {
+      // AI stats (scale with player)
+      const aiBattleStats: BattleStats = {
+        atk: Math.max(10, Math.floor((playerStats.atk || 10) * 0.8)),
+        def: Math.max(10, Math.floor((playerStats.def || 10) * 0.8))
+      };
+
+      // Player stats (defender when AI attacks)
+      const playerBattleStats: BattleStats = {
+        atk: playerStats.atk || 10,
+        def: playerStats.def || 10
+      };
+
+      // Determine battle mode
+      const battleMode: BattleMode = mode === 'pvp_tactics' ? 'SIEGE' : 'BLITZ';
+
+      if (aiIsCorrect) {
+        // AI deals damage to player
+        const aiDamage = calculateBattleDamage(
+          aiBattleStats,     // AI is attacker
+          playerBattleStats, // Player is defender
+          aiTimeLeft,
+          true,              // AI answered correctly
+          battleMode
+        );
+
         setPlayerHp(prev => {
-          const newVal = Math.max(0, prev - damage);
-          if (newVal < playerHp) triggerEffect(damage, 'player');
+          const newVal = Math.max(0, prev - aiDamage);
+          if (newVal < playerHp) triggerEffect(aiDamage, 'player');
           return newVal;
         });
         // Check game over
-        if (playerHp - damage <= 0) {
+        if (playerHp - aiDamage <= 0) {
           handleLocalGameOver('lost');
         }
       } else {
-        // AI Missed
-        triggerEffect(0, 'player', 'block');
+        // AI answered wrong - AI takes self damage (反噬)
+        const aiSelfDamage = calculateBattleDamage(
+          aiBattleStats,
+          aiBattleStats, // Target own stats for self-damage
+          aiTimeLeft,
+          false,         // Wrong answer
+          battleMode
+        );
+
+        setEnemyHp(prev => {
+          const newVal = Math.max(0, prev - aiSelfDamage);
+          triggerEffect(aiSelfDamage, 'enemy');
+          if (newVal <= 0) handleLocalGameOver('won');
+          return newVal;
+        });
       }
 
     }, aiThinkTime);
@@ -734,12 +829,22 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     const myIdsHp = myRole === 'player1' ? room.player1_hp : room.player2_hp;
     const oppIdsHp = myRole === 'player1' ? room.player2_hp : room.player1_hp;
 
+    // Set enemy max HP on first load (when current.enemyHp is still 100 default)
+    // The initial HP from the room IS the max HP
+    if (current.enemyHp === 100 && oppIdsHp !== 100) {
+      // First room update with actual enemy HP - this is their max
+      setEnemyMaxHp(oppIdsHp);
+    } else if (current.questions.length === 0 && room.questions && room.questions.length > 0) {
+      // Also set on first question load (game start)
+      setEnemyMaxHp(oppIdsHp);
+    }
+
     // Check for damage changes to trigger effects
     if (myIdsHp < current.playerHp) {
       triggerEffect(current.playerHp - myIdsHp, 'player');
     }
     if (oppIdsHp < current.enemyHp) {
-      triggerEffect(current.enemyHp - oppIdsHp, 'enemy', 'crit');
+      triggerEffect(current.enemyHp - oppIdsHp, 'enemy');
     }
 
     setPlayerHp(myIdsHp);
@@ -857,19 +962,42 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
     // Check if Local AI Match
     if (roomId.startsWith('local_ai_')) {
-      // Local Logic
+      // Local Logic with proper damage formula
       setTimeout(() => {
+        // Player stats for damage calculation
+        const playerBattleStats: BattleStats = {
+          atk: playerStats.atk || 10,
+          def: playerStats.def || 10
+        };
+
+        // AI Enemy stats (scale with player to keep it interesting)
+        const aiBattleStats: BattleStats = {
+          atk: Math.max(10, Math.floor(playerStats.atk * 0.8)), // AI is slightly weaker
+          def: Math.max(10, Math.floor(playerStats.def * 0.8))
+        };
+
+        // Determine battle mode based on game mode
+        const battleMode: BattleMode = mode === 'pvp_tactics' ? 'SIEGE' : 'BLITZ';
+
+        // Calculate damage using the Power-Speed Model
+        const dmg = calculateBattleDamage(
+          playerBattleStats,
+          aiBattleStats,
+          timeRemaining,
+          correct,
+          battleMode
+        );
+
         if (correct) {
-          const dmg = timeRemaining * 2; // Simple math
+          // Deal damage to enemy
           setEnemyHp(prev => {
             const newVal = Math.max(0, prev - dmg);
-            if (newVal < enemyHp) triggerEffect(dmg, 'enemy', 'crit');
+            if (newVal < enemyHp) triggerEffect(dmg, 'enemy');
             if (newVal <= 0) handleLocalGameOver('won');
             return newVal;
           });
         } else {
-          // Self damage?
-          const dmg = 5;
+          // Self damage (反噬)
           setPlayerHp(prev => {
             const newVal = Math.max(0, prev - dmg);
             triggerEffect(dmg, 'player');
@@ -1088,7 +1216,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                     style={{ border: '2px solid var(--ww-stroke)', background: 'rgba(26,15,40,0.08)' }}
                   >
                     <motion.div
-                      animate={{ width: `${Math.max(0, Math.min(100, enemyHp))}%` }}
+                      animate={{ width: `${Math.max(0, Math.min(100, (enemyHp / (enemyMaxHp || 1)) * 100))}%` }}
                       className="h-full"
                       style={{ background: 'linear-gradient(90deg, #f97316, #ef4444)' }}
                     />
@@ -1183,7 +1311,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
                 style={{ border: '2px solid var(--ww-stroke)', background: 'rgba(26,15,40,0.08)' }}
               >
                 <motion.div
-                  animate={{ width: `${Math.max(0, Math.min(100, enemyHp))}%` }}
+                  animate={{ width: `${Math.max(0, Math.min(100, (enemyHp / (enemyMaxHp || 1)) * 100))}%` }}
                   className="h-full"
                   style={{ background: 'linear-gradient(90deg, #f97316, #ef4444)' }}
                 />
@@ -1217,13 +1345,13 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
           {damageNumbers.map(d => (
             <motion.div
               key={d.id}
-              initial={{ y: 0, opacity: 1, scale: 0.5 }}
-              animate={{ y: -150, opacity: 0, scale: 1.5 }}
+              initial={{ y: 0, opacity: 1, scale: 0.8 }}
+              animate={{ y: -120, opacity: 0, scale: 1.3 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 2.5, ease: 'easeOut' }}
               className={`absolute font-black rpg-font z-50 flex flex-col items-center ${d.target === 'player' ? 'text-red-500 left-1/4' : 'text-yellow-500 right-1/4'}`}
             >
-              <span className={d.type === 'crit' ? 'text-4xl md:text-6xl' : 'text-2xl md:text-4xl'}>-{d.val}</span>
-              {d.type && <span className="text-[10px] md:text-xs uppercase tracking-widest">{d.type}</span>}
+              <span className="text-2xl md:text-4xl">-{d.val}</span>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -1384,9 +1512,6 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         </div>
         <div className="ww-pill px-3 py-1 text-[10px] font-black tracking-widest ww-ink inline-flex items-center gap-2">
           <Shield size={12} /> DEF {playerStats.def}
-        </div>
-        <div className="ww-pill px-3 py-1 text-[10px] font-black tracking-widest ww-ink inline-flex items-center gap-2">
-          <Zap size={12} /> 暴击 {Math.round(playerStats.crit * 100)}%
         </div>
       </div>
 
