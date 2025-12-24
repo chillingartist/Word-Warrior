@@ -169,7 +169,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     mode,
     userId,
     matchmakingChannel: null as any,
-    pollingInterval: null as NodeJS.Timeout | null
+    pollingInterval: null as NodeJS.Timeout | null,
+    searchTimer: null as NodeJS.Timeout | null
   });
 
   // Sync cleanup ref
@@ -212,7 +213,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     }
 
     const handleCleanup = () => {
-      const { roomId, pvpState, mode, userId, matchmakingChannel, pollingInterval } = cleanupRef.current;
+      const { roomId, pvpState, mode, userId, matchmakingChannel, pollingInterval, searchTimer } = cleanupRef.current;
 
       console.log('🧹 Cleanup Triggered:', { roomId, pvpState, mode });
 
@@ -221,6 +222,9 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
       }
       if (pollingInterval) {
         clearInterval(pollingInterval);
+      }
+      if (searchTimer) {
+        clearInterval(searchTimer);
       }
 
       if (userId) {
@@ -252,6 +256,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   useEffect(() => {
     cleanupRef.current.matchmakingChannel = matchmakingChannelRef.current;
     cleanupRef.current.pollingInterval = pollingIntervalRef.current;
+    cleanupRef.current.searchTimer = searchTimerRef.current;
   }); // Run on every render to ensure refs are fresh if they were mutated directly
 
   // ============================================
@@ -263,6 +268,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   // 1. Matchmaking
   const matchmakingChannelRef = useRef<any>(null); // Keep track of channel
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Matchmaking fallback poll
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null); // UI/AI Fallback timer
 
   const startMatchmaking = async () => {
     if (!userId) return;
@@ -271,14 +277,13 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     setSearchingTime(0);
     isFinishedRef.current = false; // Reset guard
 
-
-
     // Timer for UI only - Modified to trigger AI
     const timer = setInterval(() => {
       setSearchingTime(t => {
         // Wait 10 seconds before triggering AI
         if (t >= 10) {
           clearInterval(timer); // Stop counting
+          searchTimerRef.current = null;
           // Clear polling interval if exists
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           startAiMatch(); // Switch to AI
@@ -287,6 +292,8 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
         return t + 1;
       });
     }, 1000);
+
+    searchTimerRef.current = timer;
 
     // Polling Fallback (Every 2s) - Fix for race condition/missed socket events
     const pollingInterval = setInterval(async () => {
@@ -300,7 +307,10 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
       if (match) {
         console.log('🔄 Polling found match!', match);
-        clearInterval(timer);
+        if (searchTimerRef.current) {
+          clearInterval(searchTimerRef.current);
+          searchTimerRef.current = null;
+        }
         clearInterval(pollingInterval);
 
         if (matchmakingChannelRef.current) {
@@ -342,7 +352,10 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
               matchmakingChannelRef.current = null;
             }
 
-            clearInterval(timer);
+            if (searchTimerRef.current) {
+              clearInterval(searchTimerRef.current);
+              searchTimerRef.current = null;
+            }
 
             console.log('Matchmaking channel removed, switching to game room...');
             setMyRole('player1');
@@ -418,6 +431,11 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
+    }
+
+    if (searchTimerRef.current) {
+      clearInterval(searchTimerRef.current);
+      searchTimerRef.current = null;
     }
 
     // We don't await these if switching to AI to speed up UI transition
