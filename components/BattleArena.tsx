@@ -635,11 +635,27 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
   }, [roomId, pvpState, currentQIndex, playerHp]); // Re-run on state change key triggers
 
   const handleLocalGameOver = (result: 'won' | 'lost') => {
+    isFinishedRef.current = true;
     setPvpState('end');
     if (result === 'won') {
       setStatus('YOU WIN!');
+      // Set basic match details for AI match so summary UI works
+      setMatchDetails({
+        base: 10,
+        hp_bonus: Math.floor(playerHp / 20),
+        streak_bonus: 0,
+        exp_gain: 15,
+        gold_gain: 5
+      });
     } else {
       setStatus('YOU LOSE!');
+      setMatchDetails({
+        base: -5,
+        hp_bonus: 0,
+        streak_bonus: 0,
+        exp_gain: 5,
+        gold_gain: 0
+      });
     }
   };
 
@@ -1034,27 +1050,31 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
           });
         }
 
-        // Next Question
-        if (currentQIndex < questions.length - 1) {
-          setTimeout(() => {
-            const nextIdx = currentQIndex + 1;
-            setCurrentQIndex(nextIdx);
-            setHasAnsweredCurrent(false);
-            setTimeLeft(10);
-            const q = questions[nextIdx];
-            setShuffledOptions([...q.options].sort(() => Math.random() - 0.5));
-            setStatus('V.S.');
-          }, 1000);
-        } else {
-          // End of questions - loop back to keep battle going until someone dies
-          setTimeout(() => {
-            setCurrentQIndex(0);
-            setHasAnsweredCurrent(false);
-            setTimeLeft(10);
-            const q = questions[0];
-            setShuffledOptions([...q.options].sort(() => Math.random() - 0.5));
-            setStatus('V.S.');
-          }, 1000);
+        // Next Question logic: ONLY if the game hasn't ended
+        if (!isFinishedRef.current) {
+          if (currentQIndex < questions.length - 1) {
+            setTimeout(() => {
+              if (isFinishedRef.current) return; // double check inside timeout
+              const nextIdx = currentQIndex + 1;
+              setCurrentQIndex(nextIdx);
+              setHasAnsweredCurrent(false);
+              setTimeLeft(10);
+              const q = questions[nextIdx];
+              setShuffledOptions([...q.options].sort(() => Math.random() - 0.5));
+              setStatus('V.S.');
+            }, 1000);
+          } else {
+            // End of questions - loop back to keep battle going until someone dies
+            setTimeout(() => {
+              if (isFinishedRef.current) return;
+              setCurrentQIndex(0);
+              setHasAnsweredCurrent(false);
+              setTimeLeft(10);
+              const q = questions[0];
+              setShuffledOptions([...q.options].sort(() => Math.random() - 0.5));
+              setStatus('V.S.');
+            }, 1000);
+          }
         }
       }, 500);
       return;
@@ -1634,7 +1654,14 @@ const BattleArena: React.FC<BattleArenaProps> = ({ mode, playerStats, onVictory,
 
               <div className="flex gap-4 justify-center">
                 <button
-                  onClick={() => status === 'YOU WIN!' ? onVictory() : onDefeat()}
+                  onClick={() => {
+                    console.log('🏁 Match result button clicked, status:', status);
+                    if (status === 'YOU WIN!') {
+                      onVictory();
+                    } else {
+                      onDefeat();
+                    }
+                  }}
                   className={`px-12 py-4 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl ${status === 'YOU WIN!' ? 'bg-yellow-400 text-black hover:bg-yellow-300' : 'bg-red-500 text-white hover:bg-red-400'}`}
                 >
                   {status === 'YOU WIN!' ? '领取奖励' : '返回'}
