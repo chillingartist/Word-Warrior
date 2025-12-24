@@ -19,12 +19,12 @@ const MODEL_COLORS = [
 const CustomizerPanel: React.FC<CustomizerPanelProps> = ({ onClose }) => {
     const { state, updateAppearance, unlockColor } = useWarrior();
 
-    const handleColorSelect = (colorId: string) => {
+    const handleColorSelect = async (colorId: string) => {
         if (state.unlockedColors.includes(colorId)) {
             updateAppearance({ modelColor: colorId } as any);
         } else {
             // Attempt to unlock
-            if (unlockColor(colorId)) {
+            if (await unlockColor(colorId)) {
                 // If successful auto-equip
                 updateAppearance({ modelColor: colorId } as any);
             } else {

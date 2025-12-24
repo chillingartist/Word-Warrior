@@ -161,6 +161,30 @@ export const updateUserStats = async (userId: string = TEST_USER_ID, stats: Part
     return data;
 };
 
+/**
+ * Purchase an item using gold
+ * Returns success status and new gold balance
+ */
+export const purchaseItem = async (userId: string, price: number): Promise<{ success: boolean, newGold?: number, message?: string }> => {
+    const { data, error } = await supabase
+        .rpc('purchase_item', {
+            x_user_id: userId,
+            x_price: price
+        });
+
+    if (error) {
+        console.error('Error purchasing item:', error);
+        return { success: false, message: error.message };
+    }
+
+    // Check for insufficient funds code (-1)
+    if (data === -1) {
+        return { success: false, message: 'Insufficient funds' };
+    }
+
+    return { success: true, newGold: data };
+};
+
 // ============================================
 // MASTERED WORDS OPERATIONS
 // ============================================

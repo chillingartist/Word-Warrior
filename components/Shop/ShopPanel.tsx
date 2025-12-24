@@ -17,8 +17,8 @@ const ShopPanel: React.FC<ShopPanelProps> = ({ onClose }) => {
 
     const filteredItems = SHOP_ITEMS.filter(item => filter === 'all' || item.type === filter);
 
-    const handleBuy = (item: ShopItem) => {
-        const success = buyItem(item.id);
+    const handleBuy = async (item: ShopItem) => {
+        const success = await buyItem(item.id);
         if (success) {
             // Auto equip? Maybe explicit equip is better.
             // But let's show success message or interactions

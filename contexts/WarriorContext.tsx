@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { WarriorState, ShopItem } from '../types';
 import { SHOP_ITEMS } from '../constants.tsx';
 import { supabase } from '../services/supabaseClient';
+import { purchaseItem } from '../services/databaseService';
 
 // Default State
 const DEFAULT_STATE: WarriorState = {
@@ -26,11 +27,11 @@ const DEFAULT_STATE: WarriorState = {
 interface WarriorContextType {
     state: WarriorState;
     addGold: (amount: number) => void;
-    buyItem: (itemId: string) => boolean; // returns success
+    buyItem: (itemId: string) => Promise<boolean>; // returns success
     equipItem: (type: 'armor' | 'weapon', itemId: string) => void;
     updateAppearance: (updates: Partial<WarriorState['appearance']>) => void;
     getItemDetails: (itemId: string) => ShopItem | undefined;
-    unlockColor: (colorId: string) => boolean;
+    unlockColor: (colorId: string) => Promise<boolean>;
 }
 
 const WarriorContext = createContext<WarriorContextType | undefined>(undefined);
@@ -142,35 +143,48 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setState(prev => ({ ...prev, gold: prev.gold + amount }));
 
         if (userId) {
-            const { error } = await supabase.rpc('increment_user_gold', { 
-                x_user_id: userId, 
-                x_amount: amount 
+            const { error } = await supabase.rpc('increment_user_gold', {
+                x_user_id: userId,
+                x_amount: amount
             });
             if (error) console.error("Failed to sync gold to DB:", error);
         }
     };
 
-    const buyItem = (itemId: string): boolean => {
+    const buyItem = async (itemId: string): Promise<boolean> => {
         if (state.inventory.includes(itemId)) return false; // Already owned
 
         const item = SHOP_ITEMS.find(i => i.id === itemId);
         if (!item) return false;
 
-        if (state.gold >= item.price) {
-            setState(prev => ({
-                ...prev,
-                gold: prev.gold - item.price,
-                inventory: [...prev.inventory, itemId]
-            }));
+        // Optimistic check (still useful for UI feedback before network request)
+        if (state.gold < item.price) return false;
 
-            // Sync to DB
-            if (userId) {
-                supabase.rpc('increment_user_gold', { 
-                    x_user_id: userId, 
-                    x_amount: -item.price 
-                }).catch(err => console.error("Failed to sync purchase to DB:", err));
+        if (userId) {
+            // Server-side purchase
+            const { success, newGold, message } = await purchaseItem(userId, item.price);
+
+            if (success && newGold !== undefined) {
+                setState(prev => ({
+                    ...prev,
+                    gold: newGold,
+                    inventory: [...prev.inventory, itemId]
+                }));
+                return true;
+            } else {
+                console.error("Purchase failed:", message);
+                return false;
             }
-            return true;
+        } else {
+            // Fallback for non-authenticated users (if any, though useAuth implies auth)
+            if (state.gold >= item.price) {
+                setState(prev => ({
+                    ...prev,
+                    gold: prev.gold - item.price,
+                    inventory: [...prev.inventory, itemId]
+                }));
+                return true;
+            }
         }
         return false;
     };
@@ -199,24 +213,37 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
     };
 
-    const unlockColor = (colorId: string): boolean => {
+    const unlockColor = async (colorId: string): Promise<boolean> => {
         if (state.unlockedColors.includes(colorId)) return true; // Already unlocked
 
-        if (state.gold >= 100) {
-            setState(prev => ({
-                ...prev,
-                gold: prev.gold - 100,
-                unlockedColors: [...prev.unlockedColors, colorId]
-            }));
+        const PRICE = 100;
 
-            // Sync to DB
-            if (userId) {
-                supabase.rpc('increment_user_gold', { 
-                    x_user_id: userId, 
-                    x_amount: -100 
-                }).catch(err => console.error("Failed to sync color unlock to DB:", err));
+        // Optimistic check
+        if (state.gold < PRICE) return false;
+
+        if (userId) {
+            const { success, newGold, message } = await purchaseItem(userId, PRICE);
+            if (success && newGold !== undefined) {
+                setState(prev => ({
+                    ...prev,
+                    gold: newGold,
+                    unlockedColors: [...prev.unlockedColors, colorId]
+                }));
+                return true;
+            } else {
+                console.error("Unlock failed:", message);
+                return false;
             }
-            return true;
+        } else {
+            // Fallback
+            if (state.gold >= PRICE) {
+                setState(prev => ({
+                    ...prev,
+                    gold: prev.gold - PRICE,
+                    unlockedColors: [...prev.unlockedColors, colorId]
+                }));
+                return true;
+            }
         }
         return false;
     };
