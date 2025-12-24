@@ -127,11 +127,26 @@ const ShopPanel: React.FC<ShopPanelProps> = ({ onClose }) => {
                                         whileHover={{ y: -2 }}
                                         className={`relative p-4 rounded-2xl border-2 group flex flex-col ${isEquipped ? 'bg-[rgba(252,203,89,0.25)] border-[color:var(--ww-brand)]' : isOwned ? 'bg-[rgba(255,255,255,0.08)] border-[color:var(--ww-stroke)]' : 'bg-[rgba(255,255,255,0.03)] border-[color:var(--ww-stroke-soft)]'}`}
                                     >
-                                        <div className="aspect-square mb-4 rounded-xl bg-[rgba(26,15,40,0.10)] flex items-center justify-center relative overflow-hidden border border-[color:var(--ww-stroke-soft)]">
+                                        <div className="aspect-square mb-4 rounded-xl bg-[rgba(26,15,40,0.10)] flex items-center justify-center relative overflow-hidden border border-[color:var(--ww-stroke-soft)] p-2">
                                             {/* Icon Logic */}
-                                            {item.type === 'weapon' ? <Sword size={32} className="text-[color:var(--ww-stroke)]" /> :
-                                                item.type === 'shield' ? <Shield size={32} className="text-[color:var(--ww-stroke)]" /> :
-                                                    <div className="relative"><Shield size={32} className="scale-x-75 text-[color:var(--ww-stroke)]" /></div>}
+                                            {/* Icon Logic */}
+                                            <div className="relative w-full h-full flex items-center justify-center">
+                                                <img
+                                                    src={`/assets/items/${item.assetKey}.png`}
+                                                    alt={item.name}
+                                                    className="w-full h-full object-contain drop-shadow-md"
+                                                    onError={(e) => {
+                                                        // Fallback to Lucide if image fails to load
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                        (e.target as HTMLImageElement).parentElement?.querySelector('.lucide-fallback')?.classList.remove('hidden');
+                                                    }}
+                                                />
+                                                <div className="lucide-fallback hidden">
+                                                    {item.type === 'weapon' ? <Sword size={32} className="text-[color:var(--ww-stroke)]" /> :
+                                                        item.type === 'shield' ? <Shield size={32} className="text-[color:var(--ww-stroke)]" /> :
+                                                            <div className="relative"><Shield size={32} className="scale-x-75 text-[color:var(--ww-stroke)]" /></div>}
+                                                </div>
+                                            </div>
 
                                             {isEquipped && (
                                                 <div className="absolute top-2 right-2 ww-pill ww-pill--accent text-[10px] font-black px-2 py-0.5 uppercase z-10 shadow-sm">

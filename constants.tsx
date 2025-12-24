@@ -233,7 +233,7 @@ export const MOCK_QUESTIONS = [
 ];
 
 export const SHOP_ITEMS: import('./types').ShopItem[] = [
-  // Weapons
+  // Weapons (Full 10 Tiers)
   {
     id: 'wpn_wood_sword',
     name: '训练木剑',
@@ -241,7 +241,7 @@ export const SHOP_ITEMS: import('./types').ShopItem[] = [
     price: 50,
     statBonus: { atk: 2 },
     description: '一把简单的木剑，适合新手。',
-    assetKey: 'weapon_wood'
+    assetKey: 'weapon_wooden'
   },
   {
     id: 'wpn_iron_sword',
@@ -249,44 +249,261 @@ export const SHOP_ITEMS: import('./types').ShopItem[] = [
     type: 'weapon',
     price: 200,
     statBonus: { atk: 5 },
-    description: '铁匠精心打造的长剑，锋利无比。',
+    description: '铁匠精心打造的长剑。',
     assetKey: 'weapon_iron'
   },
   {
-    id: 'wpn_flame_blade',
-    name: '火焰之刃',
+    id: 'wpn_steel_sword',
+    name: '百炼钢剑',
     type: 'weapon',
-    price: 1000,
-    statBonus: { atk: 15, crit: 0.05 },
-    description: '蕴含火焰魔力的魔法剑。',
-    assetKey: 'weapon_fire'
+    price: 500,
+    statBonus: { atk: 8 },
+    description: '更加坚固且锋利的钢制长剑。',
+    assetKey: 'weapon_steel'
   },
-  // Armor
   {
-    id: 'arm_leather',
-    name: '皮甲',
+    id: 'wpn_reinforced_sword',
+    name: '强固巨剑',
+    type: 'weapon',
+    price: 1200,
+    statBonus: { atk: 12 },
+    description: '经过加固处理，威力惊人的巨剑。',
+    assetKey: 'weapon_reinforced'
+  },
+  {
+    id: 'wpn_elite_sword',
+    name: '精英佩剑',
+    type: 'weapon',
+    price: 3000,
+    statBonus: { atk: 20 },
+    description: '只有皇家卫队精英才能佩戴的宝剑。',
+    assetKey: 'weapon_elite'
+  },
+  {
+    id: 'wpn_commander_sword',
+    name: '统帅之剑',
+    type: 'weapon',
+    price: 8000,
+    statBonus: { atk: 35 },
+    description: '战场统帅的象征。',
+    assetKey: 'weapon_commander'
+  },
+  {
+    id: 'wpn_master_sword',
+    name: '大师之剑',
+    type: 'weapon',
+    price: 20000,
+    statBonus: { atk: 60 },
+    description: '传奇锻造大师的绝世作品。',
+    assetKey: 'weapon_master'
+  },
+  {
+    id: 'wpn_grandmaster_sword',
+    name: '大宗师之刃',
+    type: 'weapon',
+    price: 50000,
+    statBonus: { atk: 120 },
+    description: '破万军、斩乱麻，大宗师的利刃。',
+    assetKey: 'weapon_grandmaster'
+  },
+  {
+    id: 'wpn_legendary_sword',
+    name: '传说级幻剑',
+    type: 'weapon',
+    price: 150000,
+    statBonus: { atk: 300 },
+    description: '只存在于英雄歌谣中的幻影之剑。',
+    assetKey: 'weapon_legendary'
+  },
+  {
+    id: 'wpn_godly_sword',
+    name: '弑神之锋',
+    type: 'weapon',
+    price: 500000,
+    statBonus: { atk: 800 },
+    description: '足以撕裂空间，挑战神明的绝世凶兵。',
+    assetKey: 'weapon_godly'
+  },
+  // Shields (Tiers 1-5 integrated)
+  {
+    id: 'shd_wood',
+    name: '木盾',
+    type: 'shield',
+    price: 50,
+    statBonus: { def: 2 },
+    description: '基础的圆木盾。',
+    assetKey: 'shield_wooden'
+  },
+  {
+    id: 'shd_iron',
+    name: '铁卫盾',
+    type: 'shield',
+    price: 200,
+    statBonus: { def: 5 },
+    description: '精铁打造的方盾。',
+    assetKey: 'shield_iron'
+  },
+  {
+    id: 'shd_steel',
+    name: '钢狮之盾',
+    type: 'shield',
+    price: 600,
+    statBonus: { def: 12 },
+    description: '镌刻着狮子纹章的钢盾。',
+    assetKey: 'shield_steel'
+  },
+  {
+    id: 'shd_reinforced',
+    name: '金狮强化盾',
+    type: 'shield',
+    price: 2000,
+    statBonus: { def: 25 },
+    description: '经过黄金装饰和加固的精英盾牌。',
+    assetKey: 'shield_reinforced'
+  },
+  {
+    id: 'shd_elite',
+    name: '先锋战盾',
+    type: 'shield',
+    price: 5000,
+    statBonus: { def: 45 },
+    description: '由高科技合金打造的先锋战盾。',
+    assetKey: 'shield_elite'
+  },
+  {
+    id: 'shd_commander',
+    name: '统帅巨盾',
+    type: 'shield',
+    price: 12000,
+    statBonus: { def: 80 },
+    description: '刻有狮子佩剑纹章的统帅之盾。',
+    assetKey: 'shield_commander'
+  },
+  {
+    id: 'shd_master',
+    name: '大师皇冠盾',
+    type: 'shield',
+    price: 30000,
+    statBonus: { def: 150 },
+    description: '镶嵌皇室金边的宗师级护盾。',
+    assetKey: 'shield_master'
+  },
+  {
+    id: 'shd_grandmaster',
+    name: '翼狮大宗师盾',
+    type: 'shield',
+    price: 75000,
+    statBonus: { def: 300 },
+    description: '拥有守护之翼的传说大宗师圆盾。',
+    assetKey: 'shield_grandmaster'
+  },
+  {
+    id: 'shd_legendary',
+    name: '龙魂传说盾',
+    type: 'shield',
+    price: 200000,
+    statBonus: { def: 600 },
+    description: '封印着远古龙魂的传说神盾。',
+    assetKey: 'shield_legendary'
+  },
+  {
+    id: 'shd_godly',
+    name: '烈阳弑神盾',
+    type: 'shield',
+    price: 600000,
+    statBonus: { def: 1200 },
+    description: '如烈阳般耀眼，足以抵挡神明一击的终极之盾。',
+    assetKey: 'shield_godly'
+  },
+  // Armor (Tiers 1-5 integrated)
+  {
+    id: 'arm_wood',
+    name: '简易木甲',
     type: 'armor',
     price: 50,
     statBonus: { def: 2, hp: 10 },
-    description: '轻便的皮甲，提供基础防护。',
-    assetKey: 'armor_leather'
+    description: '基础的木质装甲，适合新手入门。',
+    assetKey: 'armor_wooden'
   },
   {
     id: 'arm_iron',
-    name: '铁甲',
+    name: '精铁战甲',
     type: 'armor',
     price: 250,
     statBonus: { def: 8, hp: 50 },
-    description: '坚固的铁甲，此时你感觉自己是个真正的战士。',
+    description: '铁匠精心打造的坚固铁甲。',
     assetKey: 'armor_iron'
   },
   {
-    id: 'arm_golden',
-    name: '黄金战甲',
+    id: 'arm_steel',
+    name: '百炼钢铠',
     type: 'armor',
-    price: 2000,
-    statBonus: { def: 20, hp: 200 },
-    description: '闪耀着金光的传说盔甲。',
-    assetKey: 'armor_gold'
+    price: 800,
+    statBonus: { def: 18, hp: 120 },
+    description: '更加厚实且轻便的百炼钢铠。',
+    assetKey: 'armor_steel'
+  },
+  {
+    id: 'arm_reinforced',
+    name: '重装加固铠',
+    type: 'armor',
+    price: 2500,
+    statBonus: { def: 40, hp: 300 },
+    description: '全方位加固的重型铠甲，防御惊人。',
+    assetKey: 'armor_reinforced'
+  },
+  {
+    id: 'arm_elite',
+    name: '精英统帅铠',
+    type: 'armor',
+    price: 7000,
+    statBonus: { def: 85, hp: 800 },
+    description: '只有最精锐的统帅才能穿着的传奇铠甲。',
+    assetKey: 'armor_elite'
+  },
+  {
+    id: 'arm_commander',
+    name: '公爵级重铠',
+    type: 'armor',
+    price: 20000,
+    statBonus: { def: 180, hp: 2000 },
+    description: '象征权力和地位的华丽重铠。',
+    assetKey: 'armor_commander'
+  },
+  {
+    id: 'arm_master',
+    name: '宗师防御铠',
+    type: 'armor',
+    price: 50000,
+    statBonus: { def: 400, hp: 5000 },
+    description: '防御大师的巅峰之作。',
+    assetKey: 'armor_master'
+  },
+  {
+    id: 'arm_grandmaster',
+    name: '大宗师守护神',
+    type: 'armor',
+    price: 120000,
+    statBonus: { def: 900, hp: 12000 },
+    description: '在大宗师手中仿佛有了生命的守护神具。',
+    assetKey: 'armor_grandmaster'
+  },
+  {
+    id: 'arm_legendary',
+    name: '传说幻影铠',
+    type: 'armor',
+    price: 300000,
+    statBonus: { def: 2000, hp: 30000 },
+    description: '如幻影般流动的传说级轻质神铠。',
+    assetKey: 'armor_legendary'
+  },
+  {
+    id: 'arm_godly',
+    name: '弑神不灭铠',
+    type: 'armor',
+    price: 1000000,
+    statBonus: { def: 5000, hp: 100000 },
+    description: '足以从神明的审判中存活的不灭之装。',
+    assetKey: 'armor_godly'
   }
 ];
