@@ -66,6 +66,24 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 /**
+ * Sign in with GitHub OAuth
+ */
+export const signInWithGitHub = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+            redirectTo: window.location.origin
+        }
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data;
+};
+
+/**
  * Sign out the current user
  */
 export const signOut = async () => {

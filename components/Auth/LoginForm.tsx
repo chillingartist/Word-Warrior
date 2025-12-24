@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, AlertCircle, Loader } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Loader, Github } from 'lucide-react';
 
 interface LoginFormProps {
     onSubmit: (email: string, password: string) => Promise<void>;
+    onGitHubLogin: () => Promise<void>;
     onSwitchToRegister: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onSwitchToRegister }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onGitHubLogin, onSwitchToRegister }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -116,6 +117,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onSwitchToRegister }) =
                         )}
                     </button>
                 </form>
+
+                {/* Divider */}
+                <div className="my-6 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">或者使用</span>
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
+                </div>
+
+                {/* Social Login */}
+                <div className="space-y-3">
+                    <button
+                        onClick={onGitHubLogin}
+                        disabled={loading}
+                        className="w-full py-3 ww-btn ww-btn--ink flex items-center justify-center gap-3"
+                    >
+                        <Github size={18} />
+                        <span className="text-xs font-bold">使用 GitHub 登录</span>
+                    </button>
+                </div>
 
                 {/* Switch to Register */}
                 <div className="mt-6 text-center">

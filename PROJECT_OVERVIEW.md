@@ -22,7 +22,7 @@
     -   **测验模式**：批次测验，根据正确率结算金币和 ATK 提升。
 2.  **学习之路 (Scholar Path)**:
     -   **听力磨炼**：音频播放 + 题目选择，提升 DEF。
-    -   **阅读试炼**：长篇文章阅读 + 多选题，提升 HP。
+    -   **阅读试炼**：长篇文章阅读 + 多选题，提升 HP。包含题目间自动平滑滚动及文章置顶重置功能。
     -   **写作工坊**：AI 辅助批改（Gemini API），提供多维度评分与建议，提升 ATK。
     -   **口语修行**：包含 **AI 评估** 与 **自由对话** 两种模式，获取大量 EXP。
 3.  **竞技场 (Battle Arena)**:
@@ -99,12 +99,28 @@
 -   `gradeWriting`: 写作 AI 多维度评分。
 -   `getExplanation`: 题目深度中文解析生成。
 -   `assessSpeakingWithAI`: 评估发音、流畅度及内容。
--   `completeListening / completeReading`: 提交训练结果，验证首次完美通过并分发阶段性大奖。
+-   `completeListening / completeReading`: 提交训练结果，验证首次完美通过并分发阶段性大奖。其中阅读模块支持答题后自动触发奖励结算。
 -   `synthesizeSpeech`: 文本转音频流 (TTS)。
 
 ---
 
-## 6. AI 接口调用详解 (OpenRouter & Gemini)
+## 6. 最近更新与问题修复 (Recent Updates)
+
+### 2025-12-24 UX 与稳定性增强
+- **身份验证升级**:
+    - 增加了 **GitHub OAuth 登录** 支持，用户可以直接通过 GitHub 账号授权进入游戏。
+- **阅读理解体验优化**:
+    - 实现了答题后的 **自动平滑滚动**，用户选择选项后自动定位到下一题。
+    - 增加了文章切换时的 **强制置顶逻辑**，确保进入新文章时视图位于顶部。
+    - 在答题回顾底部增加了“返回列表”与“下一篇”导航按钮。
+    - 简化了奖励领取流程，点击“全部提交”后自动处理 XP/金币结算。
+- **数据库稳定性修复**:
+    - 修复了 `user_readings` 表因缺少 `UPDATE` 策略导致的“Failed to save progress”错误（相关脚本：`database/fix_reading_policy.sql`）。
+    - 增强了 `readingService` 的错误捕捉与日志详细度。
+
+---
+
+## 7. AI 接口调用详解 (OpenRouter & Gemini)
 
 ### A. OpenRouter API 使用情况
 - **调用位置**: `services/speakingAssessmentService.ts`

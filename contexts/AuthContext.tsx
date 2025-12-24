@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { signUpWithEmail, signInWithEmail, signOut as authSignOut } from '../services/authService';
+import { signUpWithEmail, signInWithEmail, signInWithGitHub as authSignInWithGitHub, signOut as authSignOut } from '../services/authService';
 
 interface AuthContextType {
     user: User | null;
@@ -10,6 +10,7 @@ interface AuthContextType {
     loading: boolean;
     signUp: (email: string, password: string, username: string) => Promise<void>;
     signIn: (email: string, password: string) => Promise<void>;
+    signInWithGitHub: () => Promise<void>;
     signOut: () => Promise<void>;
 }
 
@@ -68,6 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const signInWithGitHub = async () => {
+        try {
+            await authSignInWithGitHub();
+            console.log('✅ GitHub sign in initiated');
+        } catch (error: any) {
+            console.error('❌ GitHub sign in error:', error);
+            throw error;
+        }
+    };
+
     const signOut = async () => {
         try {
             await authSignOut();
@@ -84,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         signUp,
         signIn,
+        signInWithGitHub,
         signOut,
     };
 
