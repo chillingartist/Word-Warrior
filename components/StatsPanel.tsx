@@ -113,13 +113,16 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, username, onShopClick, o
         </div>
 
         <div className="space-y-1">
-          <div className="flex items-center justify-center gap-2">
-            <Zap size={20} className="text-yellow-500 fill-yellow-500 animate-pulse" />
-            <span className="text-3xl font-black italic tracking-tighter text-yellow-600 drop-shadow-sm">
-              {kp.toLocaleString()}
-            </span>
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-600/80 mb-1">知识战力 (KP)</div>
+            <div className="flex items-center gap-2">
+              <Zap size={20} className="text-yellow-500 fill-yellow-500 animate-pulse" />
+              <span className="text-3xl font-black italic tracking-tighter text-yellow-600 drop-shadow-sm">
+                {kp.toLocaleString()}
+              </span>
+            </div>
           </div>
-          <h2 className="text-xl font-black rpg-font uppercase tracking-tighter ww-ink flex items-center justify-center gap-2">
+          <h2 className="text-xl font-black rpg-font uppercase tracking-tighter ww-ink flex items-center justify-center gap-2 pt-2">
             {username || '战士档案'}
           </h2>
         </div>

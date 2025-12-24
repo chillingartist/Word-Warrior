@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { Trophy, Medal, Crown, TrendingUp, User, BookOpen } from 'lucide-react';
+import { Trophy, Medal, Crown, TrendingUp, User, BookOpen, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
-type LeaderboardTab = 'rank' | 'words';
+type LeaderboardTab = 'rank' | 'words' | 'kp';
 
 interface LeaderRowProps {
   leader: any;
@@ -35,7 +35,7 @@ const LeaderRow: React.FC<LeaderRowProps> = ({ leader, activeTab }) => (
         </span>
       </div>
     </td>
-    {activeTab === 'rank' && (
+    {(activeTab === 'rank' || activeTab === 'kp') && (
       <td className="px-4 py-4 md:px-8 md:py-6">
         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 md:px-3 md:py-1 rounded-xl border-2"
           style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)', color: 'rgba(26,15,40,0.75)' }}
@@ -56,7 +56,7 @@ const LeaderRow: React.FC<LeaderRowProps> = ({ leader, activeTab }) => (
       </td>
     )}
     <td className={`px-4 py-4 md:px-8 md:py-6 text-right font-black rpg-font text-xs md:text-base ${leader.isUser ? 'ww-ink' : 'ww-ink'}`}>
-      {activeTab === 'rank' ? leader.points : leader.wordsCount}
+      {activeTab === 'rank' ? leader.points : activeTab === 'words' ? leader.wordsCount : leader.kp.toLocaleString()}
     </td>
   </tr>
 );
@@ -95,11 +95,12 @@ const Leaderboard: React.FC = () => {
     const fetchLeaderboard = async () => {
       setLoading(true);
       try {
-        const { getLeaderboard, getWordLeaderboard } = await import('../services/databaseService');
+        const { getLeaderboard, getWordLeaderboard, getKPLeaderboard } = await import('../services/databaseService');
 
-        const data = activeTab === 'rank'
-          ? await getLeaderboard(50)
-          : await getWordLeaderboard(50);
+        let data;
+        if (activeTab === 'rank') data = await getLeaderboard(50);
+        else if (activeTab === 'words') data = await getWordLeaderboard(50);
+        else data = await getKPLeaderboard(50);
 
         // Transform data based on active tab
         const formattedLeaders = data.map((item: any, index: number) => ({
@@ -110,6 +111,7 @@ const Leaderboard: React.FC = () => {
           winRate: `${item.win_streak}`,
           points: item.rank_points,
           wordsCount: item.mastered_words_count,
+          kp: item.kp || ((item.atk * 10) + (item.def * 15) + (item.hp * 2) + (item.level * 100)),
           isUser: user ? item.user_id === user.id : false
         }));
 
@@ -140,10 +142,10 @@ const Leaderboard: React.FC = () => {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex justify-center gap-3">
+      <div className="flex justify-center gap-2 md:gap-3 flex-wrap">
         <button
           onClick={() => setActiveTab('rank')}
-          className={`px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'rank'
+          className={`px-4 md:px-5 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'rank'
               ? 'text-black'
               : 'text-white/70 border-2 border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.25)]'
             }`}
@@ -157,8 +159,23 @@ const Leaderboard: React.FC = () => {
           排位榜
         </button>
         <button
+          onClick={() => setActiveTab('kp')}
+          className={`px-4 md:px-5 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'kp'
+              ? 'text-black'
+              : 'text-white/70 border-2 border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.25)]'
+            }`}
+          style={activeTab === 'kp' ? {
+            background: 'rgba(252,203,89,0.95)',
+            border: '3px solid var(--ww-stroke)',
+            boxShadow: '0 6px 0 rgba(0,0,0,0.18)',
+          } : {}}
+        >
+          <Zap size={14} />
+          战力榜
+        </button>
+        <button
           onClick={() => setActiveTab('words')}
-          className={`px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'words'
+          className={`px-4 md:px-5 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'words'
               ? 'text-black'
               : 'text-white/70 border-2 border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.25)]'
             }`}
@@ -219,10 +236,10 @@ const Leaderboard: React.FC = () => {
                 <div className="w-full mt-2 grid grid-cols-2 gap-2">
                   <div className="rounded-2xl border-2 px-3 py-2" style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)' }}>
                     <div className="text-[8px] font-black uppercase ww-muted">
-                      {activeTab === 'rank' ? '分数' : '单词数'}
+                      {activeTab === 'rank' ? '分数' : activeTab === 'words' ? '单词数' : '战力'}
                     </div>
                     <div className="text-xs font-black ww-ink tabular-nums">
-                      {activeTab === 'rank' ? leader.points : leader.wordsCount}
+                      {activeTab === 'rank' ? leader.points : activeTab === 'words' ? leader.wordsCount : leader.kp.toLocaleString()}
                     </div>
                   </div>
                   <div className="rounded-2xl border-2 px-3 py-2" style={{ borderColor: 'rgba(43,23,63,0.22)', background: 'rgba(255,255,255,0.25)' }}>
@@ -242,11 +259,11 @@ const Leaderboard: React.FC = () => {
                   <tr>
                     <th className="px-4 py-4 md:px-8 md:py-6 w-[15%] md:w-24">排名</th>
                     <th className="px-4 py-4 md:px-8 md:py-6 w-[35%]">武者</th>
-                    {activeTab === 'rank' && <th className="px-4 py-4 md:px-8 md:py-6 w-[25%] md:w-auto">段位</th>}
+                    {(activeTab === 'rank' || activeTab === 'kp') && <th className="px-4 py-4 md:px-8 md:py-6 w-[25%] md:w-auto">段位</th>}
                     <th className="px-8 py-6 hidden md:table-cell">等级</th>
                     {activeTab === 'rank' && <th className="px-8 py-6 hidden lg:table-cell">连胜</th>}
                     <th className="px-4 py-4 md:px-8 md:py-6 text-right w-[25%] md:w-32">
-                      {activeTab === 'rank' ? '分数' : '单词数'}
+                      {activeTab === 'rank' ? '分数' : activeTab === 'words' ? '单词数' : '战力'}
                     </th>
                   </tr>
                 </thead>
@@ -287,7 +304,7 @@ const Leaderboard: React.FC = () => {
                   ))}
                   {userNeighbors.length === 0 && (
                     <tr>
-                      <td colSpan={activeTab === 'rank' ? 6 : 4} className="px-4 py-6 text-center ww-muted text-sm font-black">
+                      <td colSpan={activeTab === 'rank' || activeTab === 'kp' ? 6 : 4} className="px-4 py-6 text-center ww-muted text-sm font-black">
                         你暂未进入前 50，继续冲刺！
                       </td>
                     </tr>
