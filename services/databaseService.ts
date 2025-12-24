@@ -236,6 +236,36 @@ export const getLeaderboard = async (limit: number = 100) => {
 };
 
 /**
+ * Get KP leaderboard
+ * Fetches users and calculates KP in JS for the top list
+ */
+export const getKPLeaderboard = async (limit: number = 100) => {
+    const { data, error } = await supabase
+        .from('user_stats')
+        .select(`
+      *,
+      profiles:user_id (
+        username,
+        email
+      )
+    `)
+        .limit(200); // Fetch more than limit to ensure we have enough after potential filtering
+
+    if (error) {
+        console.error('Error fetching KP leaderboard:', error);
+        return [];
+    }
+
+    // Formula: (atk * 10) + (def * 15) + (hp * 2) + (level * 100)
+    const withKP = data.map(item => ({
+        ...item,
+        kp: (item.atk * 10) + (item.def * 15) + (item.hp * 2) + (item.level * 100)
+    }));
+
+    return withKP.sort((a, b) => b.kp - a.kp).slice(0, limit);
+};
+
+/**
  * Get word leaderboard sorted by mastered words count
  */
 export const getWordLeaderboard = async (limit: number = 100) => {
