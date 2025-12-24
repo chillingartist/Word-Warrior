@@ -7,7 +7,7 @@ import RegisterForm from './RegisterForm';
 
 const AuthPage: React.FC = () => {
     const [isLogin, setIsLogin] = useState(true);
-    const { signIn, signUp, signInWithGitHub } = useAuth();
+    const { signIn, signUp, signInWithGitHub, signInWithGoogle } = useAuth();
 
     const handleLogin = async (email: string, password: string) => {
         await signIn(email, password);
@@ -15,6 +15,10 @@ const AuthPage: React.FC = () => {
 
     const handleGitHubLogin = async () => {
         await signInWithGitHub();
+    };
+
+    const handleGoogleLogin = async () => {
+        await signInWithGoogle();
     };
 
     const handleRegister = async (email: string, password: string, username: string) => {
@@ -37,6 +41,7 @@ const AuthPage: React.FC = () => {
                             key="login"
                             onSubmit={handleLogin}
                             onGitHubLogin={handleGitHubLogin}
+                            onGoogleLogin={handleGoogleLogin}
                             onSwitchToRegister={() => setIsLogin(false)}
                         />
                     ) : (

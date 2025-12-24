@@ -1,15 +1,16 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, AlertCircle, Loader, Github } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Loader, Github, Chrome } from 'lucide-react';
 
 interface LoginFormProps {
     onSubmit: (email: string, password: string) => Promise<void>;
     onGitHubLogin: () => Promise<void>;
+    onGoogleLogin: () => Promise<void>;
     onSwitchToRegister: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onGitHubLogin, onSwitchToRegister }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onGitHubLogin, onGoogleLogin, onSwitchToRegister }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -126,14 +127,22 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onGitHubLogin, onSwitch
                 </div>
 
                 {/* Social Login */}
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={onGitHubLogin}
                         disabled={loading}
-                        className="w-full py-3 ww-btn ww-btn--ink flex items-center justify-center gap-3"
+                        className="py-3 ww-btn ww-btn--ink flex items-center justify-center gap-2"
                     >
                         <Github size={18} />
-                        <span className="text-xs font-bold">使用 GitHub 登录</span>
+                        <span className="text-[10px] font-bold">GitHub</span>
+                    </button>
+                    <button
+                        onClick={onGoogleLogin}
+                        disabled={loading}
+                        className="py-3 ww-btn ww-btn--ink flex items-center justify-center gap-2"
+                    >
+                        <Chrome size={18} />
+                        <span className="text-[10px] font-bold">Google</span>
                     </button>
                 </div>
 
