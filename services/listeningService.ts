@@ -90,30 +90,9 @@ export const listeningService = {
 
         if (isPerfectScore && !previouslyPerfect) {
             xpAmount = 180;
-            const goldAmount = 60;
+            goldAwarded = 60;
 
-            const { error: xpError } = await supabase.rpc('increment_user_exp', {
-                x_user_id: userId,
-                x_amount: xpAmount
-            });
-
-            if (xpError) {
-                console.error('Error awarding XP:', xpError);
-            }
-
-            // Award Gold
-            const { error: goldError } = await supabase.rpc('increment_user_gold', {
-                x_user_id: userId,
-                x_amount: goldAmount
-            });
-
-            if (goldError) {
-                console.error('Error awarding Gold:', goldError);
-            } else {
-                goldAwarded = goldAmount;
-            }
-
-            return { success: true, xpAwarded: xpAmount, goldAwarded, message: `Excellent! +${xpAmount} EXP, +${goldAmount} Coins` };
+            return { success: true, xpAwarded: xpAmount, goldAwarded, message: `Excellent! +${xpAmount} EXP, +${goldAwarded} Coins` };
         }
 
         return { success: true, xpAwarded: 0, message: 'Exercise completed!' };

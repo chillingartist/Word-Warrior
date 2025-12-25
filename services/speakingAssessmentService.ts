@@ -274,29 +274,6 @@ export async function saveAssessment(
 
         if (assessmentError) throw assessmentError;
 
-        // Update user experience if exp was awarded
-        if (expAwarded > 0) {
-            const { error: expError } = await supabase.rpc('add_user_exp', {
-                p_user_id: userId,
-                p_exp: expAwarded,
-            });
-
-            if (expError) {
-                console.error('Error updating user exp:', expError);
-            }
-        }
-
-        // Update user gold
-        if (goldAwarded > 0) {
-            const { error: goldError } = await supabase.rpc('increment_user_gold', {
-                x_user_id: userId,
-                x_amount: goldAwarded
-            });
-            if (goldError) {
-                console.error('Error updating user gold:', goldError);
-            }
-        }
-
         return {
             assessmentId: assessmentData.id,
             expAwarded,

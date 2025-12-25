@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Trophy, Shield, User, ChevronRight, LayoutGrid, Star, Flame, Target, BookOpen, Swords, Mic2, Headphones, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { INITIAL_STATS, NAVIGATION, TRAINING_MODES, PVP_MODES } from './constants.tsx';
 import { UserStats, Rank } from './types';
-import { getUserStats, updateUserStats, addMasteredWord, incrementUserStat, addUserExp, incrementUserGold } from './services/databaseService';
+import { getUserStats, updateUserStats, addMasteredWord, incrementUserStat, addUserExp } from './services/databaseService';
 import { useAuth } from './contexts/AuthContext';
 import AuthPage from './components/Auth/AuthPage';
 import LoadingScreen from './components/Auth/LoadingScreen';
@@ -91,7 +91,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
     prevKPRef.current = currentKP;
   }, [warriorState.equipped, stats.level, stats.atk, stats.def, stats.maxHp]);
 
-  const handleGainExp = (exp: number, statType?: 'atk' | 'def' | 'crit' | 'hp', isMastered?: boolean) => {
+  const handleGainExp = (exp: number, statType?: 'atk' | 'def' | 'crit' | 'hp', gold: number = 0, isMastered?: boolean) => {
     // 1. Immediate RPG Feedback (Local)
     let newStats = { ...stats, exp: stats.exp + exp };
 
@@ -121,9 +121,12 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
 
     // Update Local State for Snappy UI
     updateStats(newStats);
+    
+    // Gold is handled by addGold which already includes DB sync
+    if (gold > 0) addGold(gold);
 
     // 2. Authoritative DB Sync (via RPCs)
-    // This avoids race conditions with Realtime updates
+    // Only handles EXP and Stats. Gold is managed by WarriorContext.addGold.
     if (userId) {
       // Sync Level Up to DB if it happened
       if (leveledUp) {
@@ -142,7 +145,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
         
         // Sync specific stat if any
         if (statType) {
-          // Map frontend stat names to DB columns
           const columnMap: Record<string, string> = {
             atk: 'atk',
             def: 'def',
@@ -151,11 +153,6 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
           };
           incrementUserStat(userId, columnMap[statType], 1);
         }
-      }
-
-      // Add Gold for Vocab if applicable (Vocab now gives 2 gold per correct)
-      if (statType === 'atk' && exp === 1) {
-        incrementUserGold(userId, 2);
       }
     }
   };
@@ -379,42 +376,30 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'vocab': return <VocabTraining onMastered={(isMastered) => handleGainExp(1, 'atk', isMastered)} />;
+      case 'vocab': return <VocabTraining onMastered={(isMastered) => handleGainExp(1, 'atk', 2, isMastered)} />;
       case 'scholar': return renderScholarPath();
       case 'leaderboard': return <div className="pb-32"><Leaderboard /></div>;
       case 'profile': return renderProfile();
       case 'reading': return <div className="h-full"><ReadingTraining
         onToggleStatusBar={setIsStatusBarHidden}
         onSuccess={(exp, gold) => {
-          handleGainExp(exp, 'hp');
-          if (gold) {
-            addGold(gold);
-          }
+          handleGainExp(exp, 'hp', gold);
         }} /></div>;
       case 'writing': return <div className="h-full"><WritingTraining
         onToggleStatusBar={setIsStatusBarHidden}
         onSuccess={(exp, gold) => {
-          handleGainExp(exp, 'atk');
-          if (gold) {
-            addGold(gold);
-          }
+          handleGainExp(exp, 'atk', gold);
         }} /></div>;
       case 'listening': return <div className="h-full"><ListeningTraining
         onToggleStatusBar={setIsStatusBarHidden}
         onSuccess={(exp, gold) => {
-          handleGainExp(exp, 'def');
-          if (gold) {
-            addGold(gold);
-          }
+          handleGainExp(exp, 'def', gold);
         }} /></div>;
       case 'oral': return <div className="h-full"><OralTraining
         playerStats={stats}
         onToggleStatusBar={setIsStatusBarHidden}
         onSuccess={(exp, gold) => {
-          handleGainExp(exp);
-          if (gold) {
-            addGold(gold);
-          }
+          handleGainExp(exp, undefined, gold);
         }} /></div>;
       case 'pvp_blitz':
       case 'pvp_tactics':
@@ -426,7 +411,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({ userId }) => {
           updateStats(val);
         }
       }} />;
-      default: return <VocabTraining onMastered={(isMastered) => handleGainExp(1, 'atk', isMastered)} />;
+      default: return <VocabTraining onMastered={(isMastered) => handleGainExp(1, 'atk', 2, isMastered)} />;
     }
   };
 

@@ -90,29 +90,6 @@ export const readingService = {
         if (isPerfectScore && !previouslyPerfect) {
             xpAwarded = 350;
             goldAwarded = 100;
-
-            // Increment XP
-            const { error: xpError } = await supabase.rpc('increment_user_exp', {
-                x_user_id: userId,
-                x_amount: xpAwarded
-            });
-
-            if (xpError) {
-                console.error('Error awarding XP:', xpError);
-            }
-
-            // Increment Gold
-            // Using the same RPC as writing function
-            const { data: newGold, error: goldError } = await supabase.rpc('increment_user_gold', {
-                x_user_id: userId,
-                x_amount: goldAwarded
-            });
-
-            if (goldError) {
-                console.error('Error awarding Gold:', goldError);
-            } else {
-                console.log('Gold incremented successfully. New balance:', newGold);
-            }
         }
 
         let message = 'Reading completed!';

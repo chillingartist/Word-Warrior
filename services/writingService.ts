@@ -65,24 +65,6 @@ export const writingService = {
         if (currentScore >= 80 && !previouslyPassed) {
             xpAwarded = 500;
             goldAwarded = 150;
-
-            // Increment XP
-            await supabase.rpc('increment_user_exp', {
-                x_user_id: userId,
-                x_amount: xpAwarded
-            });
-
-            // Add Gold using RPC
-            const { data: newGold, error: goldError } = await supabase.rpc('increment_user_gold', {
-                x_user_id: userId,
-                x_amount: goldAwarded
-            });
-
-            if (goldError) {
-                console.error('Failed to increment Gold:', goldError);
-            } else {
-                console.log('Gold incremented successfully. New balance:', newGold);
-            }
         }
 
         let message = 'Submitted successfully!';
