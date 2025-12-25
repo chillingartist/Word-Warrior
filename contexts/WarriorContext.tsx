@@ -58,10 +58,17 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (!userId || !loaded) return;
 
         const timer = setTimeout(() => {
-            // We only push non-gold stats usually, but strict sync is okay if we are careful.
-            // However, gold is managed by RPC. So we should exclude gold from UPDATE calls to avoid race conditions.
-            const { gold, ...statsToSync } = state.stats;
-            updateUserStats(userId, statsToSync);
+            // ONLY sync stats that are NOT managed by authoritative DB functions (RPCs)
+            // managed by RPC: gold, mastered_words_count, exp, atk, def, crit
+            // managed by frontend: max_hp (level up logic is currently split)
+            
+            // To be safe and avoid race conditions with Realtime updates, 
+            // we only sync things that aren't updated rapidly via training.
+            const { gold, masteredWordsCount, exp, atk, def, crit, ...rest } = state.stats;
+            
+            if (Object.keys(rest).length > 0) {
+                updateUserStats(userId, rest);
+            }
         }, 2000);
         return () => clearTimeout(timer);
     }, [state.stats, userId, loaded]);
@@ -127,10 +134,26 @@ export const WarriorProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 filter: `user_id=eq.${userId}`
             }, (payload) => {
                 if (payload.new) {
+                    const db = payload.new;
                     setState(prev => ({
                         ...prev,
-                        gold: payload.new.gold,
-                        stats: { ...prev.stats, ...payload.new }
+                        gold: db.gold,
+                        stats: {
+                            ...prev.stats,
+                            level: db.level,
+                            exp: db.exp,
+                            atk: db.atk,
+                            def: db.def,
+                            crit: db.crit,
+                            hp: db.hp,
+                            maxHp: db.max_hp,
+                            rank: db.rank,
+                            rankPoints: db.rank_points,
+                            winStreak: db.win_streak,
+                            masteredWordsCount: db.mastered_words_count,
+                            loginDays: db.login_days,
+                            gold: db.gold
+                        }
                     }));
                 }
             })

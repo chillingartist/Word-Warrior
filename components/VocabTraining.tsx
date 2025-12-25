@@ -210,7 +210,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, questionIndex, 
 const STORAGE_KEY = 'ww_vocab_session';
 
 interface VocabTrainingProps {
-  onMastered: (word: string) => void;
+  onMastered: (isMastered: boolean) => void;
 }
 
 const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
@@ -364,8 +364,8 @@ const VocabTraining: React.FC<VocabTrainingProps> = ({ onMastered }) => {
       setScore(prev => prev + 1);
       if (user) {
         // Mark as learned in DB
-        await markWordProgress(user.id, currentWord.id, true);
-        onMastered(currentWord.word);
+        const result = await markWordProgress(user.id, currentWord.id, true);
+        onMastered(result?.status === 'mastered');
       }
     } else {
       // Log incorrect attempt if needed
