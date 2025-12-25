@@ -305,22 +305,22 @@ export const equipItem = async (userId: string, itemId: string): Promise<{ succe
  * Add a mastered word for a user
  */
 export const addMasteredWord = async (userId: string = TEST_USER_ID, word: string) => {
+    // Use upsert to avoid 409 Conflict if word already exists
     const { data, error } = await supabase
         .from('mastered_words')
-        .insert([{ user_id: userId, word }])
+        .upsert(
+            [{ user_id: userId, word }],
+            { onConflict: 'user_id,word' }
+        )
         .select()
         .single();
 
     if (error) {
-        // Ignore duplicate errors (word already mastered)
-        if (error.code === '23505') {
-            return null;
-        }
         console.error('Error adding mastered word:', error);
         return null;
     }
 
-    // Also update the count
+    // Also update the count via RPC
     await supabase.rpc('increment_mastered_words_count', { user_uuid: userId });
 
     return data;
@@ -488,6 +488,55 @@ export const getUserAchievements = async (userId: string = TEST_USER_ID): Promis
 // ============================================
 // SYNC HELPER
 // ============================================
+
+/**
+ * Increment a specific user stat safely via RPC
+ */
+export const incrementUserStat = async (userId: string, statColumn: string, amount: number) => {
+    const { error } = await supabase.rpc('increment_user_stat', {
+        x_user_id: userId,
+        x_stat_column: statColumn,
+        x_amount: amount
+    });
+
+    if (error) {
+        console.error(`Error incrementing ${statColumn}:`, error);
+        return false;
+    }
+    return true;
+};
+
+/**
+ * Add experience to user safely via RPC
+ */
+export const addUserExp = async (userId: string, amount: number) => {
+    const { error } = await supabase.rpc('add_user_exp', {
+        p_user_id: userId,
+        p_exp: amount
+    });
+
+    if (error) {
+        console.error('Error adding user exp:', error);
+        return false;
+    }
+    return true;
+};
+
+/**
+ * Add gold to user safely via RPC
+ */
+export const incrementUserGold = async (userId: string, amount: number) => {
+    const { error } = await supabase.rpc('increment_user_gold', {
+        x_user_id: userId,
+        x_amount: amount
+    });
+
+    if (error) {
+        console.error('Error adding user gold:', error);
+        return false;
+    }
+    return true;
+};
 
 /**
  * Sync local stats to database (debounced in practice)
